@@ -81,6 +81,8 @@
 				<version>3.9.0</version>
 				<configuration>
 					<java>
+						<removeUnusedImports/>
+						<importOrder/>
 						<palantirJavaFormat>
 							<version>2.96.0</version>
 						</palantirJavaFormat>
