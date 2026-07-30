@@ -40,10 +40,12 @@ README em vez de codar.
 - Banco: SQLite via org.xerial:sqlite-jdbc +
   org.hibernate.orm:hibernate-community-dialects.
   Dialect: org.hibernate.community.dialect.SQLiteDialect. ddl-auto=update.
-  REGRA DE ESCAPE: se o dialect não funcionar com o Hibernate do Boot 4
-  em até 20 minutos de tentativa, pare, troque para H2 em modo arquivo
-  (jdbc:h2:file:./data/app) e registre a decisão no README. O enunciado
-  permite "SQLite ou similar".
+  REGRA DE ESCAPE: se o SQLiteDialect não subir o contexto da aplicação
+  após duas abordagens distintas, PARE. Não tente uma terceira e não
+  troque de banco por conta própria: me relate o que tentou, o erro exato
+  de cada tentativa, e aguarde minha decisão sobre migrar para H2.
+  O enunciado permite "SQLite ou similar"; se a decisão for migrar, o
+  alvo é H2 em modo arquivo (jdbc:h2:file:./data/app).
 - Web: Vite + React + TypeScript + react-router. Sem lib de estado global.
 - Pacote base: dev.adamsalves.ordertracker
 
