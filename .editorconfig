@@ -10,3 +10,15 @@ indent_size = 2
 
 [*.java]
 indent_size = 4
+
+[*.xml]
+indent_style = tab
+
+[mvnw]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[*.cmd]
+end_of_line = crlf
+trim_trailing_whitespace = false
+insert_final_newline = false
