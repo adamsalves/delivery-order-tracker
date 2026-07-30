@@ -62,8 +62,12 @@ README em vez de codar.
   versão 4.x em vez de assumir o padrão do 3.x. Se uma API que você ia
   usar foi removida ou renomeada, me avise antes de implementar.
 - Uma branch por fase, nomeada feat/<escopo> ou chore/<escopo>. Crie a
-  branch no início de cada tarefa e me avise quando ela estiver pronta
-  para merge — o merge na main é feito por mim, com --no-ff. Nunca use
-  squash: os commits atômicos são requisito do desafio.
+  branch no início de cada tarefa, a partir da main atualizada.
+- TODA mudança chega na main por Pull Request. Nunca commite, nunca dê
+  push e nunca faça merge direto na main. Ao terminar a tarefa: push da
+  branch, abra o PR contra a main e me avise. Abrir o PR encerra a
+  tarefa — a revisão e o merge são meus.
+- O merge é feito com --no-ff. Nunca use squash: os commits atômicos são
+  requisito do desafio.
 - Antes de cada commit, rode o formatador do lado correspondente:
   ./mvnw spotless:apply na API, npm run format no web.
