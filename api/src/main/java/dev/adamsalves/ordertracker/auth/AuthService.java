@@ -108,7 +108,7 @@ class AuthService {
      */
     @Transactional
     void logout(Jwt token) {
-        revokedTokenRepository.deleteByExpiresAtBefore(Instant.now().minus(REVOCATION_GRACE));
+        revokedTokenRepository.deleteExpiredBefore(Instant.now().minus(REVOCATION_GRACE));
         revokedTokenRepository.save(new RevokedToken(token.getId(), token.getExpiresAt()));
     }
 }
