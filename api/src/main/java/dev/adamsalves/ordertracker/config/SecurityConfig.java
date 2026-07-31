@@ -1,5 +1,6 @@
 package dev.adamsalves.ordertracker.config;
 
+import jakarta.servlet.DispatcherType;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,19 +27,25 @@ class SecurityConfig {
      * Everything the API serves is behind a bearer token. The openings are named one by one rather
      * than as a prefix so that an endpoint added under /api/auth later is protected by default:
      * logout, for one, only means anything when it can tell which token to revoke.
+     *
+     * <p>The ERROR dispatch is let through because an exception the container has to render takes a
+     * second trip through the chain, and authorising it again turns every unhandled failure into an
+     * empty 401. Only the container reaches /error that way: a client asking for it directly
+     * arrives on a REQUEST dispatch and still has to authenticate.
      */
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(
-                        requests -> requests.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
-                                .permitAll()
-                                .requestMatchers(DOCUMENTATION_PATHS)
-                                .permitAll()
-                                .anyRequest()
-                                .authenticated())
+                .authorizeHttpRequests(requests -> requests.dispatcherTypeMatchers(DispatcherType.ERROR)
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
+                        .permitAll()
+                        .requestMatchers(DOCUMENTATION_PATHS)
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .build();
     }
