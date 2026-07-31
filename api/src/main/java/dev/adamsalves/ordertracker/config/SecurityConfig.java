@@ -3,6 +3,7 @@ package dev.adamsalves.ordertracker.config;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -19,21 +20,25 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 class SecurityConfig {
 
-    private static final String[] PUBLIC_PATHS = {"/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**"};
+    private static final String[] DOCUMENTATION_PATHS = {"/swagger-ui/**", "/v3/api-docs/**"};
 
     /**
-     * Everything the API serves is behind a bearer token. The only openings are the two endpoints
-     * that hand a token out and the API description, which carries no order data.
+     * Everything the API serves is behind a bearer token. The openings are named one by one rather
+     * than as a prefix so that an endpoint added under /api/auth later is protected by default:
+     * logout, for one, only means anything when it can tell which token to revoke.
      */
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(requests -> requests.requestMatchers(PUBLIC_PATHS)
-                        .permitAll()
-                        .anyRequest()
-                        .authenticated())
+                .authorizeHttpRequests(
+                        requests -> requests.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
+                                .permitAll()
+                                .requestMatchers(DOCUMENTATION_PATHS)
+                                .permitAll()
+                                .anyRequest()
+                                .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .build();
     }
