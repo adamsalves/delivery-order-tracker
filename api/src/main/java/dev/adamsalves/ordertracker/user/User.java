@@ -9,6 +9,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 @Entity
 @Table(name = "users")
@@ -40,10 +41,12 @@ public class User {
 
     /**
      * Addresses are compared and stored in a single case so that the unique constraint actually
-     * rejects the same mailbox typed with different capitalisation.
+     * rejects the same mailbox typed with different capitalisation. The locale is pinned because
+     * the default one decides what lowercase means: a Turkish JVM maps I to a dotless i, which
+     * would file the same address under two different accounts depending on how it was typed.
      */
     public static String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     @PrePersist
