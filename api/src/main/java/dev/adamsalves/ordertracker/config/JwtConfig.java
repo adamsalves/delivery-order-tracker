@@ -25,10 +25,17 @@ class JwtConfig {
     /**
      * HS256 rejects keys shorter than 256 bits, and it does so when a token is first signed rather
      * than when the key is built. Checking here turns a misconfigured secret into a startup failure
-     * instead of a login that breaks in production.
+     * instead of a login that breaks in production. There is deliberately no built-in secret to
+     * fall back on: one would have to ship in the repository, and a deployment that forgot to set
+     * JWT_SECRET would sign its tokens with a key everybody can read.
      */
     @Bean
     SecretKey jwtSecretKey(JwtProperties properties) {
+        if (properties.secret() == null || properties.secret().isBlank()) {
+            throw new IllegalStateException(
+                    "app.jwt.secret is not set: export JWT_SECRET, or put it in api/.env (see api/.env.example)");
+        }
+
         byte[] secret = properties.secret().getBytes(StandardCharsets.UTF_8);
         if (secret.length < MINIMUM_SECRET_BYTES) {
             throw new IllegalStateException("app.jwt.secret must be at least %d bytes long for HS256, but was %d"
