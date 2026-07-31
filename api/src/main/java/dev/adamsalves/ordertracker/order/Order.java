@@ -14,6 +14,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,13 +59,21 @@ public class Order {
 
     @PrePersist
     void onCreate() {
-        createdAt = Instant.now();
+        createdAt = now();
         updatedAt = createdAt;
     }
 
     @PreUpdate
     void onUpdate() {
-        updatedAt = Instant.now();
+        updatedAt = now();
+    }
+
+    /**
+     * Truncated to the resolution the database keeps, so the timestamps returned when an order is
+     * created match the ones returned when it is read back.
+     */
+    private static Instant now() {
+        return Instant.now().truncatedTo(ChronoUnit.MILLIS);
     }
 
     public Long getId() {
