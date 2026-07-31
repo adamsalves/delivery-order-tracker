@@ -5,7 +5,6 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Runs alongside the signature and expiry checks so that a token handed back at logout stops being
@@ -30,7 +29,6 @@ class RevokedTokenValidator implements OAuth2TokenValidator<Jwt> {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public OAuth2TokenValidatorResult validate(Jwt token) {
         if (token.getId() == null || token.getExpiresAt() == null) {
             return OAuth2TokenValidatorResult.failure(UNREVOCABLE);
