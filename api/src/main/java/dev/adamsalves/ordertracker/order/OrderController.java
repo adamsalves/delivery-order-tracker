@@ -41,10 +41,17 @@ class OrderController {
     /**
      * Returns a PagedModel rather than the Page itself: the JSON produced by PageImpl is not a
      * stable contract and Spring warns about serialising it directly.
+     *
+     * <p>The id breaks ties on creation date, which the database stores with millisecond
+     * resolution, so orders created within the same millisecond keep a stable order across pages.
      */
     @GetMapping
     PagedModel<OrderSummaryResponse> findAll(
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(
+                            size = 20,
+                            sort = {"createdAt", "id"},
+                            direction = Sort.Direction.DESC)
+                    Pageable pageable) {
         return new PagedModel<>(orderService.findAll(pageable));
     }
 }
