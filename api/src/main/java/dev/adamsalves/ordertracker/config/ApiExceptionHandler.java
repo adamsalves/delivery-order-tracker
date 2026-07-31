@@ -1,7 +1,11 @@
 package dev.adamsalves.ordertracker.config;
 
+import dev.adamsalves.ordertracker.auth.EmailAlreadyRegisteredException;
+import dev.adamsalves.ordertracker.auth.InvalidCredentialsException;
+import dev.adamsalves.ordertracker.auth.PasswordTooLongException;
 import dev.adamsalves.ordertracker.order.InvalidStatusTransitionException;
 import dev.adamsalves.ordertracker.order.OrderNotFoundException;
+import dev.adamsalves.ordertracker.order.UnsupportedSortPropertyException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +47,26 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidStatusTransitionException.class)
     ProblemDetail handleInvalidStatusTransition(InvalidStatusTransitionException ex) {
         return problem(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    ProblemDetail handleEmailAlreadyRegistered(EmailAlreadyRegisteredException ex) {
+        return problem(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(PasswordTooLongException.class)
+    ProblemDetail handlePasswordTooLong(PasswordTooLongException ex) {
+        return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(UnsupportedSortPropertyException.class)
+    ProblemDetail handleUnsupportedSortProperty(UnsupportedSortPropertyException ex) {
+        return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @Override

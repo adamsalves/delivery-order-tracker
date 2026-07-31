@@ -10,12 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Credentials are checked by loading the account and comparing the hash directly. A stateless API
@@ -24,9 +22,6 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @Service
 class AuthService {
-
-    private static final String INVALID_CREDENTIALS = "Invalid email or password";
-    private static final String EMAIL_TAKEN = "Email already registered";
 
     /**
      * How long a revocation outlives the token it names. JwtTimestampValidator accepts a token for
@@ -61,13 +56,12 @@ class AuthService {
         // characters are 144 bytes and the encoder refuses them, so a character-based @Size would
         // wave through passwords that cannot be hashed.
         if (request.password().getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Password must be at most %d bytes long".formatted(MAX_PASSWORD_BYTES));
+            throw new PasswordTooLongException(MAX_PASSWORD_BYTES);
         }
 
         String email = User.normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, EMAIL_TAKEN);
+            throw new EmailAlreadyRegisteredException();
         }
 
         try {
@@ -78,7 +72,7 @@ class AuthService {
             // The check above answers the common case with a proper message; this catches the two
             // registrations that pass it at the same time, where only the unique constraint is
             // left to arbitrate.
-            throw new ResponseStatusException(HttpStatus.CONFLICT, EMAIL_TAKEN, duplicate);
+            throw new EmailAlreadyRegisteredException(duplicate);
         }
     }
 
@@ -91,11 +85,11 @@ class AuthService {
             // Hashing against a throwaway value keeps an unknown address as slow to reject as a
             // wrong password, so response time does not disclose which accounts exist.
             passwordEncoder.matches(request.password(), decoyHash);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS);
+            throw new InvalidCredentialsException();
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, INVALID_CREDENTIALS);
+            throw new InvalidCredentialsException();
         }
 
         return tokenService.issueFor(user);

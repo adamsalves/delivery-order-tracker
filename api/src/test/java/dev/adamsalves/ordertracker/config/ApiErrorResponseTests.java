@@ -1,10 +1,14 @@
 package dev.adamsalves.ordertracker.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.adamsalves.ordertracker.support.ApiTestClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,10 +17,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * Registration stands in for every validated endpoint here: it is reachable without a token, so
- * these cases are about the shape of the answer rather than about who is asking.
+ * The shape of a refusal, whatever raised it. Registration stands in for the validated endpoints
+ * because it is reachable without a token, which keeps these cases about the answer rather than
+ * about who is asking.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -26,6 +32,31 @@ class ApiErrorResponseTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    /**
+     * Sorting is turned down inside the service rather than by the framework, so this is the case
+     * that would notice if a refusal raised down there stopped coming out as a problem detail.
+     */
+    @Test
+    void answersAnUnsortablePropertyWithTheOnesItAccepts() throws Exception {
+        String token = new ApiTestClient(mockMvc, objectMapper).registerAndLogin("sorting@example.com");
+
+        String body = mockMvc.perform(get("/api/orders")
+                        .header(AUTHORIZATION, "Bearer " + token)
+                        .param("sort", "items"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(objectMapper.readTree(body).path("detail").asText())
+                .contains("items")
+                .contains("createdAt");
+    }
 
     @Test
     void namesEveryFieldThatFailedValidation() throws Exception {
