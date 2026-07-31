@@ -9,6 +9,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,8 +31,8 @@ class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    OrderDetailResponse create(@Valid @RequestBody CreateOrderRequest request) {
-        return orderService.create(request);
+    OrderDetailResponse create(@Valid @RequestBody CreateOrderRequest request, @AuthenticationPrincipal Jwt token) {
+        return orderService.create(request, token.getClaimAsString("email"));
     }
 
     @GetMapping("/{id}")

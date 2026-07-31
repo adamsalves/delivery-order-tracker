@@ -19,17 +19,26 @@ public class OrderService {
             Set.of("id", "customerName", "deliveryAddress", "status", "createdAt");
 
     private final OrderRepository orderRepository;
+    private final OrderStatusHistoryRepository statusHistoryRepository;
 
-    public OrderService(OrderRepository orderRepository) {
+    public OrderService(OrderRepository orderRepository, OrderStatusHistoryRepository statusHistoryRepository) {
         this.orderRepository = orderRepository;
+        this.statusHistoryRepository = statusHistoryRepository;
     }
 
+    /**
+     * The timeline is opened here rather than on the first transition, so that an order that has
+     * never moved still says when it arrived and who took it.
+     */
     @Transactional
-    public OrderDetailResponse create(CreateOrderRequest request) {
+    public OrderDetailResponse create(CreateOrderRequest request, String changedBy) {
         Order order = new Order(request.customerName(), request.deliveryAddress());
         request.items().forEach(item -> order.addItem(new OrderItem(item.name(), item.quantity(), item.unitPrice())));
 
-        return OrderDetailResponse.from(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+        statusHistoryRepository.save(new OrderStatusHistory(saved, null, saved.getStatus(), changedBy));
+
+        return OrderDetailResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
