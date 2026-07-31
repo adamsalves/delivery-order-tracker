@@ -21,8 +21,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 class SecurityConfig {
 
-    private static final String[] DOCUMENTATION_PATHS = {"/swagger-ui/**", "/v3/api-docs/**"};
-
     /**
      * Everything the API serves is behind a bearer token. The openings are named one by one rather
      * than as a prefix so that an endpoint added under /api/auth later is protected by default:
@@ -41,8 +39,6 @@ class SecurityConfig {
                 .authorizeHttpRequests(requests -> requests.dispatcherTypeMatchers(DispatcherType.ERROR)
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
-                        .permitAll()
-                        .requestMatchers(DOCUMENTATION_PATHS)
                         .permitAll()
                         .anyRequest()
                         .authenticated())
