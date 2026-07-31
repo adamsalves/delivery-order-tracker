@@ -3,6 +3,7 @@ package dev.adamsalves.ordertracker.order.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 /**
@@ -11,4 +12,4 @@ import java.util.List;
 public record CreateOrderRequest(
         @NotBlank String customerName,
         @NotBlank String deliveryAddress,
-        @NotEmpty List<@Valid CreateOrderItemRequest> items) {}
+        @NotEmpty List<@NotNull @Valid CreateOrderItemRequest> items) {}
