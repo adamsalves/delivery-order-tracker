@@ -1,5 +1,7 @@
 package dev.adamsalves.ordertracker.config;
 
+import dev.adamsalves.ordertracker.order.InvalidStatusTransitionException;
+import dev.adamsalves.ordertracker.order.OrderNotFoundException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -7,12 +9,14 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -30,6 +34,16 @@ import tools.jackson.databind.exc.InvalidFormatException;
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String UNREADABLE_BODY = "Failed to read request";
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    ProblemDetail handleOrderNotFound(OrderNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    ProblemDetail handleInvalidStatusTransition(InvalidStatusTransitionException ex) {
+        return problem(HttpStatus.CONFLICT, ex.getMessage());
+    }
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -67,6 +81,18 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                         Collectors.mapping(
                                 error -> Objects.requireNonNullElse(error.getDefaultMessage(), "is invalid"),
                                 Collectors.toList())));
+    }
+
+    /**
+     * The title is filled in by hand because a ProblemDetail returned straight from a handler is
+     * written out as it stands, while the ones the base class builds arrive with the reason phrase
+     * already on them. Left alone, the two halves of this advice would answer in different shapes.
+     */
+    private ProblemDetail problem(HttpStatus status, String detail) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(status, detail);
+        body.setTitle(status.getReasonPhrase());
+
+        return body;
     }
 
     private String describe(HttpMessageNotReadableException ex) {

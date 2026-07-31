@@ -41,12 +41,30 @@ public class OrderService {
         return OrderDetailResponse.from(saved);
     }
 
+    /**
+     * Flushed before the response is built: the status change alone would only reach the database
+     * when the transaction commits, and the timestamp that PreUpdate stamps on the way out would
+     * still be the old one by the time it was read back into the body.
+     */
+    @Transactional
+    public OrderDetailResponse updateStatus(Long id, OrderStatus target, String changedBy) {
+        Order order = orderRepository.findWithItemsById(id).orElseThrow(() -> new OrderNotFoundException(id));
+
+        OrderStatus previous = order.getStatus();
+        order.transitionTo(target);
+
+        Order updated = orderRepository.saveAndFlush(order);
+        statusHistoryRepository.save(new OrderStatusHistory(updated, previous, target, changedBy));
+
+        return OrderDetailResponse.from(updated);
+    }
+
     @Transactional(readOnly = true)
     public OrderDetailResponse findById(Long id) {
         return orderRepository
                 .findWithItemsById(id)
                 .map(OrderDetailResponse::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order " + id + " not found"));
+                .orElseThrow(() -> new OrderNotFoundException(id));
     }
 
     @Transactional(readOnly = true)

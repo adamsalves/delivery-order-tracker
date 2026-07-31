@@ -30,7 +30,13 @@ class ProtectedRoutesTests {
     private MockMvc mockMvc;
 
     @ParameterizedTest
-    @CsvSource({"GET,/api/orders", "GET,/api/orders/1", "POST,/api/orders", "POST,/api/auth/logout"})
+    @CsvSource({
+        "GET,/api/orders",
+        "GET,/api/orders/1",
+        "POST,/api/orders",
+        "PATCH,/api/orders/1/status",
+        "POST,/api/auth/logout"
+    })
     void refusesTheRouteWithoutABearerToken(String method, String path) throws Exception {
         mockMvc.perform(request(HttpMethod.valueOf(method), path)).andExpect(status().isUnauthorized());
     }

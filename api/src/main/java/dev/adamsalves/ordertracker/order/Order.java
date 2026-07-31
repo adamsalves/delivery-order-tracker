@@ -58,6 +58,18 @@ public class Order {
         item.setOrder(this);
     }
 
+    /**
+     * The only way the status ever moves. Keeping the field without a setter is what makes the
+     * machine in OrderStatus the single account of which moves exist.
+     */
+    public void transitionTo(OrderStatus target) {
+        if (!status.canTransitionTo(target)) {
+            throw new InvalidStatusTransitionException(status, target);
+        }
+
+        status = target;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = now();
