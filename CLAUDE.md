@@ -16,6 +16,22 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
 - Pedido: cliente, itens, endereço de entrega.
 - Status: RECEBIDO, EM_PREPARO, SAIU_PARA_ENTREGA, ENTREGUE, CANCELADO.
   Estes valores são LITERAIS e em português. Nunca traduza.
+- As transições legais são uma máquina de estados no próprio enum
+  (`allowedTransitions()`): RECEBIDO -> EM_PREPARO ou CANCELADO;
+  EM_PREPARO -> SAIU_PARA_ENTREGA ou CANCELADO; SAIU_PARA_ENTREGA ->
+  ENTREGUE ou CANCELADO; ENTREGUE e CANCELADO são terminais. Nenhum
+  status se lista a si mesmo, então parar no lugar é recusado pela mesma
+  tabela — não crie uma regra separada para isso. Transição inválida
+  devolve 409 nomeando o status atual, o pedido e as saídas abertas.
+- Histórico de status: cada transição grava uma linha
+  (`OrderStatusHistory`) com origem, destino, horário e o e-mail do
+  autor, lido do claim do JWT. A criação do pedido grava a primeira
+  linha, com origem nula, para a timeline não nascer vazia. A associação
+  NÃO é mapeada como coleção em `Order`: os itens já são um bag e um
+  segundo no mesmo entity graph quebra com MultipleBagFetchException.
+- Erros: um `@RestControllerAdvice` único devolvendo `ProblemDetail`
+  (RFC 9457). Os services levantam exceções de domínio próprias e não
+  conhecem status HTTP. Não escreva um record de erro próprio.
 - Endpoints: criar pedido, atualizar status, listar todos, buscar por ID.
 - A listagem é PAGINADA e ordenável. Decisão deliberada, tomada na fase
   de domínio: devolver a tabela inteira numa resposta só não escala e a
@@ -26,7 +42,10 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
   PlainPageSerializationWarning), e `max-page-size` limitado.
   A ordenação aceita apenas as propriedades escalares que a listagem
   expõe — propriedade desconhecida ou associação to-many devolve 400.
-- Front React: lista de pedidos com status atual + criação de pedido.
+  A listagem NÃO carrega itens nem histórico, pelo mesmo motivo de N+1:
+  só o detalhe (`OrderDetailResponse`) leva as duas coleções.
+- Front React: lista de pedidos com status atual + criação de pedido,
+  e a timeline do histórico na tela de detalhe.
 
 ## Fora de escopo — NÃO implemente, mesmo se parecer útil
 Mapa, geolocalização, entregador/motoboy, roteirização, WebSocket,
