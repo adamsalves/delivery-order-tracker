@@ -9,11 +9,22 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
 - Status: RECEBIDO, EM_PREPARO, SAIU_PARA_ENTREGA, ENTREGUE, CANCELADO.
   Estes valores são LITERAIS e em português. Nunca traduza.
 - Endpoints: criar pedido, atualizar status, listar todos, buscar por ID.
+- A listagem é PAGINADA e ordenável. Decisão deliberada, tomada na fase
+  de domínio: devolver a tabela inteira numa resposta só não escala e a
+  ordem das linhas sem ORDER BY fica a critério do banco. Contrato:
+  `Pageable` no controller, `@PageableDefault(size = 20, sort =
+  {"createdAt", "id"}, direction = DESC)`, resposta em
+  `PagedModel<OrderSummaryResponse>` (nunca `Page<T>` direto, que emite
+  PlainPageSerializationWarning), e `max-page-size` limitado.
+  A ordenação aceita apenas as propriedades escalares que a listagem
+  expõe — propriedade desconhecida ou associação to-many devolve 400.
 - Front React: lista de pedidos com status atual + criação de pedido.
 
 ## Fora de escopo — NÃO implemente, mesmo se parecer útil
 Mapa, geolocalização, entregador/motoboy, roteirização, WebSocket,
-refresh token, roles/permissões, paginação, Docker, CI, cache, i18n.
+refresh token, roles/permissões, Docker, CI, cache, i18n.
+Filtro por status também está fora: a listagem tem paginação e
+ordenação, e nada além disso.
 Se achar que algo assim agrega, escreva na seção "Próximos passos" do
 README em vez de codar.
 
