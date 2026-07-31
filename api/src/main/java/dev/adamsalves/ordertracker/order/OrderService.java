@@ -3,6 +3,7 @@ package dev.adamsalves.ordertracker.order;
 import dev.adamsalves.ordertracker.order.dto.CreateOrderRequest;
 import dev.adamsalves.ordertracker.order.dto.OrderDetailResponse;
 import dev.adamsalves.ordertracker.order.dto.OrderSummaryResponse;
+import java.util.List;
 import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,9 +37,10 @@ public class OrderService {
         request.items().forEach(item -> order.addItem(new OrderItem(item.name(), item.quantity(), item.unitPrice())));
 
         Order saved = orderRepository.save(order);
-        statusHistoryRepository.save(new OrderStatusHistory(saved, null, saved.getStatus(), changedBy));
+        OrderStatusHistory opening =
+                statusHistoryRepository.save(new OrderStatusHistory(saved, null, saved.getStatus(), changedBy));
 
-        return OrderDetailResponse.from(saved);
+        return OrderDetailResponse.from(saved, List.of(opening));
     }
 
     /**
@@ -56,15 +58,20 @@ public class OrderService {
         Order updated = orderRepository.saveAndFlush(order);
         statusHistoryRepository.save(new OrderStatusHistory(updated, previous, target, changedBy));
 
-        return OrderDetailResponse.from(updated);
+        return detailOf(updated);
     }
 
     @Transactional(readOnly = true)
     public OrderDetailResponse findById(Long id) {
         return orderRepository
                 .findWithItemsById(id)
-                .map(OrderDetailResponse::from)
+                .map(this::detailOf)
                 .orElseThrow(() -> new OrderNotFoundException(id));
+    }
+
+    private OrderDetailResponse detailOf(Order order) {
+        return OrderDetailResponse.from(
+                order, statusHistoryRepository.findByOrderIdOrderByChangedAtAscIdAsc(order.getId()));
     }
 
     @Transactional(readOnly = true)
