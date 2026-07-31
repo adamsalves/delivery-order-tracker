@@ -90,10 +90,12 @@ class ProtectedRoutesTests {
     }
 
     /**
-     * The page describing how to obtain a token cannot be behind one.
+     * The page describing how to obtain a token cannot be behind one. The yaml rendering is named
+     * separately because the suffix puts it in the same path segment as api-docs, where the /**
+     * that opens the others does not reach it.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"/v3/api-docs", "/swagger-ui/index.html"})
+    @ValueSource(strings = {"/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui/index.html"})
     void letsTheDocumentationBeReadWithoutAToken(String path) throws Exception {
         mockMvc.perform(get(path)).andExpect(status().isOk());
     }
