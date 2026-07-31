@@ -6,6 +6,8 @@ import dev.adamsalves.ordertracker.auth.dto.RegisterRequest;
 import dev.adamsalves.ordertracker.auth.dto.RegisterResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,5 +33,15 @@ class AuthController {
     @PostMapping("/login")
     LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    /**
+     * Takes the caller's own token out of circulation. There is no body to send: the token being
+     * revoked is the one that authorised the call.
+     */
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void logout(@AuthenticationPrincipal Jwt token) {
+        authService.logout(token);
     }
 }
