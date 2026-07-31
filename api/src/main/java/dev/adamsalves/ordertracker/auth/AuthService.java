@@ -6,6 +6,7 @@ import dev.adamsalves.ordertracker.auth.dto.RegisterRequest;
 import dev.adamsalves.ordertracker.auth.dto.RegisterResponse;
 import dev.adamsalves.ordertracker.user.User;
 import dev.adamsalves.ordertracker.user.UserRepository;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,8 @@ class AuthService {
      */
     private static final Duration REVOCATION_GRACE = Duration.ofMinutes(1);
 
+    private static final int MAX_PASSWORD_BYTES = 72;
+
     private final UserRepository userRepository;
     private final RevokedTokenRepository revokedTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -52,6 +55,14 @@ class AuthService {
 
     @Transactional
     RegisterResponse register(RegisterRequest request) {
+        // The ceiling is counted in bytes because that is what BCrypt measures: 72 accented
+        // characters are 144 bytes and the encoder refuses them, so a character-based @Size would
+        // wave through passwords that cannot be hashed.
+        if (request.password().getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Password must be at most %d bytes long".formatted(MAX_PASSWORD_BYTES));
+        }
+
         String email = User.normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
