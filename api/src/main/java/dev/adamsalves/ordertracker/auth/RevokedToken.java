@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.springframework.data.domain.Persistable;
 
 /**
  * A token that was handed back at logout. Only the identifier and the moment the token would have
@@ -13,7 +14,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "revoked_tokens")
-class RevokedToken {
+class RevokedToken implements Persistable<String> {
 
     @Id
     private String id;
@@ -28,7 +29,18 @@ class RevokedToken {
         this.expiresAt = expiresAt;
     }
 
-    String getId() {
+    /**
+     * The identifier comes from the token rather than from the database, so Spring Data would read
+     * the row as detached and merge it, selecting before every insert. A revocation is written once
+     * and never updated.
+     */
+    @Override
+    public boolean isNew() {
+        return true;
+    }
+
+    @Override
+    public String getId() {
         return id;
     }
 
