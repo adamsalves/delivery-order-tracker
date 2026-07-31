@@ -5,6 +5,14 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
 ## Escopo FECHADO — não implemente nada além disto
 - Auth: cadastro (nome, email, senha), login por email+senha, JWT.
   Apenas autenticados acessam a API.
+- Logout: revoga o token que autorizou a chamada. Como o JWT é
+  stateless, encerrar a sessão só no cliente deixaria o token válido
+  até expirar; por isso o token carrega um `jti` e o logout grava esse
+  identificador numa tabela de revogados, consultada a cada request por
+  um `OAuth2TokenValidator` composto com os validadores padrão. As
+  entradas expiradas são apagadas no próprio logout, sem job agendado.
+  O trade-off é deliberado: a API deixa de ser 100% stateless e paga um
+  lookup por request autenticado.
 - Pedido: cliente, itens, endereço de entrega.
 - Status: RECEBIDO, EM_PREPARO, SAIU_PARA_ENTREGA, ENTREGUE, CANCELADO.
   Estes valores são LITERAIS e em português. Nunca traduza.
@@ -23,6 +31,7 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
 ## Fora de escopo — NÃO implemente, mesmo se parecer útil
 Mapa, geolocalização, entregador/motoboy, roteirização, WebSocket,
 refresh token, roles/permissões, Docker, CI, cache, i18n.
+Recuperação de senha e verificação de e-mail também estão fora.
 Filtro por status também está fora: a listagem tem paginação e
 ordenação, e nada além disso.
 Se achar que algo assim agrega, escreva na seção "Próximos passos" do
