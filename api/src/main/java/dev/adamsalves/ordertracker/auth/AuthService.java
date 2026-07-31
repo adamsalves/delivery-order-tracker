@@ -9,6 +9,7 @@ import dev.adamsalves.ordertracker.user.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 class AuthService {
 
     private static final String INVALID_CREDENTIALS = "Invalid email or password";
+    private static final String EMAIL_TAKEN = "Email already registered";
 
     /**
      * How long a revocation outlives the token it names. JwtTimestampValidator accepts a token for
@@ -65,11 +67,19 @@ class AuthService {
 
         String email = User.normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, EMAIL_TAKEN);
         }
 
-        User user = userRepository.save(new User(request.name(), email, passwordEncoder.encode(request.password())));
-        return new RegisterResponse(user.getId(), user.getName(), user.getEmail());
+        try {
+            User user =
+                    userRepository.save(new User(request.name(), email, passwordEncoder.encode(request.password())));
+            return new RegisterResponse(user.getId(), user.getName(), user.getEmail());
+        } catch (DataIntegrityViolationException duplicate) {
+            // The check above answers the common case with a proper message; this catches the two
+            // registrations that pass it at the same time, where only the unique constraint is
+            // left to arbitrate.
+            throw new ResponseStatusException(HttpStatus.CONFLICT, EMAIL_TAKEN, duplicate);
+        }
     }
 
     @Transactional(readOnly = true)
