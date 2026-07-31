@@ -4,6 +4,7 @@ import dev.adamsalves.ordertracker.auth.dto.LoginRequest;
 import dev.adamsalves.ordertracker.auth.dto.LoginResponse;
 import dev.adamsalves.ordertracker.auth.dto.RegisterRequest;
 import dev.adamsalves.ordertracker.auth.dto.RegisterResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,11 +27,13 @@ class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
+    @SecurityRequirements
     RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
     }
 
     @PostMapping("/login")
+    @SecurityRequirements
     LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
     }

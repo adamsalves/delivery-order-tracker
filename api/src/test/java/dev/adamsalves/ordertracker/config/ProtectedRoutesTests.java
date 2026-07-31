@@ -1,5 +1,6 @@
 package dev.adamsalves.ordertracker.config;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,5 +51,14 @@ class ProtectedRoutesTests {
     void letsTheWayInThrough(String path) throws Exception {
         mockMvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The page describing how to obtain a token cannot be behind one.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"/v3/api-docs", "/swagger-ui/index.html"})
+    void letsTheDocumentationBeReadWithoutAToken(String path) throws Exception {
+        mockMvc.perform(get(path)).andExpect(status().isOk());
     }
 }

@@ -31,6 +31,9 @@ class SecurityConfig {
      * second trip through the chain, and authorising it again turns every unhandled failure into an
      * empty 401. Only the container reaches /error that way: a client asking for it directly
      * arrives on a REQUEST dispatch and still has to authenticate.
+     *
+     * <p>The documentation is readable without a token because the page that describes how to
+     * obtain one cannot itself require one. It states the shape of the API, not its contents.
      */
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -40,6 +43,8 @@ class SecurityConfig {
                 .authorizeHttpRequests(requests -> requests.dispatcherTypeMatchers(DispatcherType.ERROR)
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .anyRequest()
                         .authenticated())
