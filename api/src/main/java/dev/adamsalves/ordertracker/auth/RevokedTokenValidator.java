@@ -16,6 +16,13 @@ class RevokedTokenValidator implements OAuth2TokenValidator<Jwt> {
 
     private static final OAuth2Error REVOKED = new OAuth2Error("invalid_token", "Token has been revoked", null);
 
+    /**
+     * A token this validator could never act on: without a jti there is nothing for logout to
+     * record, and without an exp the record would never become safe to sweep. Accepting either
+     * would mean handing out a token that cannot be taken back, so both are refused.
+     */
+    private static final OAuth2Error UNREVOCABLE = new OAuth2Error("invalid_token", "Token cannot be revoked", null);
+
     private final RevokedTokenRepository revokedTokenRepository;
 
     RevokedTokenValidator(RevokedTokenRepository revokedTokenRepository) {
@@ -25,10 +32,10 @@ class RevokedTokenValidator implements OAuth2TokenValidator<Jwt> {
     @Override
     @Transactional(readOnly = true)
     public OAuth2TokenValidatorResult validate(Jwt token) {
-        String id = token.getId();
-        if (id == null || revokedTokenRepository.existsById(id)) {
-            // A token with no jti cannot be looked up, so it can never be revoked either. Refusing
-            // it keeps every accepted token revocable.
+        if (token.getId() == null || token.getExpiresAt() == null) {
+            return OAuth2TokenValidatorResult.failure(UNREVOCABLE);
+        }
+        if (revokedTokenRepository.existsById(token.getId())) {
             return OAuth2TokenValidatorResult.failure(REVOKED);
         }
         return OAuth2TokenValidatorResult.success();
