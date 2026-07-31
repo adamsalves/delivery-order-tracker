@@ -6,6 +6,7 @@ import dev.adamsalves.ordertracker.auth.dto.RegisterRequest;
 import dev.adamsalves.ordertracker.auth.dto.RegisterResponse;
 import dev.adamsalves.ordertracker.user.User;
 import dev.adamsalves.ordertracker.user.UserRepository;
+import java.time.Duration;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +24,13 @@ import org.springframework.web.server.ResponseStatusException;
 class AuthService {
 
     private static final String INVALID_CREDENTIALS = "Invalid email or password";
+
+    /**
+     * How long a revocation outlives the token it names. JwtTimestampValidator accepts a token for
+     * DEFAULT_MAX_CLOCK_SKEW past its expiry, so a row dropped the moment the token expires would
+     * put it back in circulation for the rest of that window. Keep this at or above the skew.
+     */
+    private static final Duration REVOCATION_GRACE = Duration.ofMinutes(1);
 
     private final UserRepository userRepository;
     private final RevokedTokenRepository revokedTokenRepository;
@@ -73,13 +81,13 @@ class AuthService {
     }
 
     /**
-     * Expired entries are dropped on the way in, which keeps the table bounded without a scheduled
-     * job: a token that is past its expiry is already refused by the timestamp check, so its row
-     * has nothing left to say.
+     * Entries that no token can still use are dropped on the way in, which keeps the table bounded
+     * without a scheduled job. Only rows past the grace window go: before that the token they name
+     * is still being accepted, so the row is the only thing standing in its way.
      */
     @Transactional
     void logout(Jwt token) {
-        revokedTokenRepository.deleteByExpiresAtBefore(Instant.now());
+        revokedTokenRepository.deleteByExpiresAtBefore(Instant.now().minus(REVOCATION_GRACE));
         revokedTokenRepository.save(new RevokedToken(token.getId(), token.getExpiresAt()));
     }
 }
