@@ -1,3 +1,4 @@
+import type * as React from "react";
 import type { OrderStatus } from "@/api/types";
 import { cn } from "@/lib/utils";
 
@@ -17,20 +18,22 @@ const FILL: Record<OrderStatus, string> = {
   CANCELADO: "bg-status-cancelado",
 };
 
-interface StatusRailProps {
+interface StatusRailProps extends React.ComponentProps<"div"> {
   status: OrderStatus;
-  className?: string;
 }
 
 /**
  * Four segments filled up to the current state. A cancelled order does not fill them: the rail is
  * left unfilled and struck through, so the shape says the order stopped rather than finished.
  */
-export function StatusRail({ status, className }: StatusRailProps) {
+export function StatusRail({ status, className, ...props }: StatusRailProps) {
   const reached = FORWARD.indexOf(status);
 
   return (
-    <div className={cn("relative flex items-center gap-1", className)}>
+    <div
+      className={cn("relative flex items-center gap-1", className)}
+      {...props}
+    >
       {FORWARD.map((step, index) => (
         <span
           key={step}

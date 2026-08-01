@@ -25,7 +25,7 @@ export function AuthLayout() {
                 <span className="font-mono text-[11px] tracking-wider opacity-60">
                   {status}
                 </span>
-                <StatusRail status={status} />
+                <StatusRail status={status} aria-hidden="true" />
               </li>
             ))}
           </ul>

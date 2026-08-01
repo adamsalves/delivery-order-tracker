@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { Link, Outlet, useNavigate } from "react-router";
+import { Link, Outlet } from "react-router";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 
 export function AppLayout() {
   const { session, signOut } = useAuth();
-  const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
 
+  /** No redirect of its own: dropping the session is what RequireAuth reacts to. */
   async function handleSignOut() {
     setLeaving(true);
     await signOut();
-    void navigate("/login", { replace: true });
   }
 
   return (
