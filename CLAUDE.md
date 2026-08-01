@@ -32,6 +32,13 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
 - Erros: um `@RestControllerAdvice` único devolvendo `ProblemDetail`
   (RFC 9457). Os services levantam exceções de domínio próprias e não
   conhecem status HTTP. Não escreva um record de erro próprio.
+  Exceção inevitável: 401 e 403 são recusados na cadeia de filtros,
+  antes do DispatcherServlet, onde o advice não alcança. Um
+  `AuthenticationEntryPoint`/`AccessDeniedHandler` próprio escreve o
+  mesmo `ProblemDetail` ali, delegando antes aos handlers de origem
+  para preservar o header `WWW-Authenticate`. O corpo não diz se o
+  token faltou, expirou ou foi revogado: isso é papel do header, e
+  distinguir no corpo ajudaria a separar tokens válidos dos inválidos.
 - Endpoints: criar pedido, atualizar status, listar todos, buscar por ID.
 - A listagem é PAGINADA e ordenável. Decisão deliberada, tomada na fase
   de domínio: devolver a tabela inteira numa resposta só não escala e a
@@ -79,6 +86,14 @@ README em vez de codar.
 - Banco: SQLite via org.xerial:sqlite-jdbc +
   org.hibernate.orm:hibernate-community-dialects.
   Dialect: org.hibernate.community.dialect.SQLiteDialect. ddl-auto=update.
+  Toda transação começa IMMEDIATE, via
+  `spring.datasource.hikari.data-source-properties`. Não é ajuste fino:
+  o SQLite recusa promover a transação que já leu em transação que
+  escreve, e recusa sem esperar o `busy_timeout`, então qualquer
+  read-modify-write (a troca de status é um) devolvia 500 com dois
+  clientes simultâneos. Os parâmetros vão como propriedades do driver e
+  não na URL, porque cada classe de teste sobrescreve a URL e perderia
+  o que estivesse escrito nela.
   REGRA DE ESCAPE: se o SQLiteDialect não subir o contexto da aplicação
   após duas abordagens distintas, PARE. Não tente uma terceira e não
   troque de banco por conta própria: me relate o que tentou, o erro exato
