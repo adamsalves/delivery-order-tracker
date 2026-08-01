@@ -38,6 +38,7 @@ import tools.jackson.databind.exc.InvalidFormatException;
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String UNREADABLE_BODY = "Failed to read request";
+    private static final int MAX_ECHOED_LENGTH = 50;
 
     @ExceptionHandler(OrderNotFoundException.class)
     ProblemDetail handleOrderNotFound(OrderNotFoundException ex) {
@@ -125,11 +126,22 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 && invalid.getTargetType().isEnum()) {
             return "%s is not a valid %s, accepted values are %s"
                     .formatted(
-                            invalid.getValue(),
+                            abbreviate(invalid.getValue()),
                             invalid.getTargetType().getSimpleName(),
                             Arrays.toString(invalid.getTargetType().getEnumConstants()));
         }
 
         return UNREADABLE_BODY;
+    }
+
+    /**
+     * What came in is quoted back so the caller can see what was read, but only as much of it as
+     * identifies the value: the rest is the caller's own bytes, and a body of any size would
+     * otherwise decide the size of the answer.
+     */
+    private String abbreviate(Object value) {
+        String rejected = String.valueOf(value);
+
+        return rejected.length() <= MAX_ECHOED_LENGTH ? rejected : rejected.substring(0, MAX_ECHOED_LENGTH) + "…";
     }
 }

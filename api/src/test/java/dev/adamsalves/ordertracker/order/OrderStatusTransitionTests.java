@@ -134,6 +134,17 @@ class OrderStatusTransitionTests {
         assertThat(detailOf(refused)).contains("VOANDO").contains("RECEBIDO").contains("SAIU_PARA_ENTREGA");
     }
 
+    /**
+     * The rejected value is quoted back so the caller can see what was read, but a longer word must
+     * not buy a longer answer: the size of the reply is ours to decide, not the sender's.
+     */
+    @Test
+    void quotesBackOnlyAsMuchOfTheStatusAsIdentifiesIt() throws Exception {
+        ResultActions refused = changeStatusTo(orderId, "V".repeat(5_000)).andExpect(status().isBadRequest());
+
+        assertThat(detailOf(refused)).hasSizeLessThan(200).contains("…");
+    }
+
     @Test
     void turnsDownARequestThatNamesNoStatusAtAll() throws Exception {
         mockMvc.perform(patch("/api/orders/{id}/status", orderId)
