@@ -5,6 +5,7 @@ import dev.adamsalves.ordertracker.order.dto.OrderDetailResponse;
 import dev.adamsalves.ordertracker.order.dto.OrderSummaryResponse;
 import dev.adamsalves.ordertracker.order.dto.UpdateOrderStatusRequest;
 import jakarta.validation.Valid;
+import java.util.Objects;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -70,8 +71,13 @@ class OrderController {
     /**
      * The address travels as a claim, so attributing a change to its author costs nothing beyond
      * reading the token that authorised it.
+     *
+     * <p>Insisted on rather than passed along, because the column that receives it rejects null:
+     * a token issued without the claim would otherwise be found out by the database, at commit,
+     * with the transition already accepted and nothing in the message naming the claim.
      */
     private static String callerEmail(Jwt token) {
-        return token.getClaimAsString("email");
+        return Objects.requireNonNull(
+                token.getClaimAsString("email"), "The token carries no email claim to attribute the change to");
     }
 }
