@@ -31,9 +31,18 @@ class SecurityConfig {
      * second trip through the chain, and authorising it again turns every unhandled failure into an
      * empty 401. Only the container reaches /error that way: a client asking for it directly
      * arrives on a REQUEST dispatch and still has to authenticate.
+     *
+     * <p>The documentation is readable without a token because the page that describes how to
+     * obtain one cannot itself require one. It states the shape of the API, not its contents.
+     *
+     * <p>The refusals are routed through a handler of our own so that they arrive as problem
+     * details like every other failure. Naming it on the resource server is enough: the configurer
+     * installs it as the entry point for the whole chain, so requests that never presented a token
+     * are answered by it too.
      */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemDetailAuthenticationHandler problemDetails)
+            throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -41,9 +50,18 @@ class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
                         .permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html")
+                        .permitAll()
                         .anyRequest()
                         .authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint(problemDetails)
+                        .accessDeniedHandler(problemDetails))
                 .build();
     }
 
