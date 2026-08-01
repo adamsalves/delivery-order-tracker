@@ -10,9 +10,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import dev.adamsalves.ordertracker.support.ApiTestClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
@@ -74,6 +77,27 @@ class ApiErrorResponseTests {
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.email").exists())
                 .andExpect(jsonPath("$.errors.password").exists());
+    }
+
+    /**
+     * The stock messages read in one language and ours in another would make the payload bilingual,
+     * so this pins the half we do not write. Hibernate Validator ships a bundle per locale and is
+     * the usual reason an API answers "não deve estar em branco" next to an English detail, but
+     * neither Accept-Language nor the locale the JVM starts in reaches it here — checked against a
+     * running instance under both. These cases are what would notice if that stopped being true.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"pt-BR", "pt", "en", "de"})
+    void wordsTheStockValidationMessagesTheSameWhateverTheClientAsksFor(String language) throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .header(HttpHeaders.ACCEPT_LANGUAGE, language)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "", "email": "not-an-address", "password": "short"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name[0]").value("must not be blank"))
+                .andExpect(jsonPath("$.errors.email[0]").value("must be a well-formed email address"))
+                .andExpect(jsonPath("$.errors.password[0]").value("size must be between 8 and 2147483647"));
     }
 
     /**
