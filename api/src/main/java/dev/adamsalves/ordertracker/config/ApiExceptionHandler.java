@@ -108,16 +108,8 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                 Collectors.toList())));
     }
 
-    /**
-     * The title is filled in by hand because a ProblemDetail returned straight from a handler is
-     * written out as it stands, while the ones the base class builds arrive with the reason phrase
-     * already on them. Left alone, the two halves of this advice would answer in different shapes.
-     */
     private ProblemDetail problem(HttpStatus status, String detail) {
-        ProblemDetail body = ProblemDetail.forStatusAndDetail(status, detail);
-        body.setTitle(status.getReasonPhrase());
-
-        return body;
+        return ProblemDetail.forStatusAndDetail(status, detail);
     }
 
     private String describe(HttpMessageNotReadableException ex) {

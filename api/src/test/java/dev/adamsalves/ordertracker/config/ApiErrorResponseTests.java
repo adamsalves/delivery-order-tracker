@@ -38,7 +38,9 @@ class ApiErrorResponseTests {
 
     /**
      * Sorting is turned down inside the service rather than by the framework, so this is the case
-     * that would notice if a refusal raised down there stopped coming out as a problem detail.
+     * that would notice if a refusal raised down there stopped coming out as a problem detail. The
+     * title is asserted because it is not set by hand: it comes off the status, and the two halves
+     * of the advice have to keep answering in the same shape.
      */
     @Test
     void answersAnUnsortablePropertyWithTheOnesItAccepts() throws Exception {
@@ -49,6 +51,7 @@ class ApiErrorResponseTests {
                         .param("sort", "items"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Bad Request"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
