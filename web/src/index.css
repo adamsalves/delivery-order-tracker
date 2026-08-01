@@ -1,3 +1,18 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/archivo/wdth.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/*
+ * Scopes dark: to an explicit .dark ancestor, which nothing sets. Dropping the variant would hand
+ * it back to prefers-color-scheme, and the dark: utilities baked into the shadcn components would
+ * fire against a light-only palette for anyone whose system is dark.
+ */
+@custom-variant dark (&:is(.dark *));
+
 *,
 *::before,
 *::after {
@@ -11,7 +26,6 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
-  font-family: system-ui, sans-serif;
   line-height: 1.5;
 }
 
@@ -29,4 +43,116 @@ button,
 textarea,
 select {
   font: inherit;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-heading: var(--font-display);
+
+  --color-status-recebido: var(--status-recebido);
+  --color-status-em-preparo: var(--status-em-preparo);
+  --color-status-saiu-para-entrega: var(--status-saiu-para-entrega);
+  --color-status-entregue: var(--status-entregue);
+  --color-status-cancelado: var(--status-cancelado);
+  --color-rail-track: var(--rail-track);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Steel surface and ink, with the five status colours as the only saturated things on the page.
+ * Each one clears 4.5:1 against the surface, so a status reads as text and not only as a swatch.
+ */
+:root {
+  --background: #f2f4f3;
+  --foreground: #12151a;
+  --card: #ffffff;
+  --card-foreground: #12151a;
+  --popover: #ffffff;
+  --popover-foreground: #12151a;
+  --primary: #12151a;
+  --primary-foreground: #f2f4f3;
+  --secondary: #e4e8e6;
+  --secondary-foreground: #12151a;
+  --muted: #e4e8e6;
+  --muted-foreground: #5c6470;
+  --accent: #e4e8e6;
+  --accent-foreground: #12151a;
+  --destructive: #9b5257;
+  --border: #d9dedb;
+  --input: #d9dedb;
+  --ring: #55606e;
+  --radius: 0.375rem;
+
+  --status-recebido: #55606e;
+  --status-em-preparo: #925c00;
+  --status-saiu-para-entrega: #1f5fa8;
+  --status-entregue: #2f7a47;
+  --status-cancelado: #9b5257;
+  --rail-track: #d9dedb;
+
+  --chart-1: var(--status-recebido);
+  --chart-2: var(--status-em-preparo);
+  --chart-3: var(--status-saiu-para-entrega);
+  --chart-4: var(--status-entregue);
+  --chart-5: var(--status-cancelado);
+  --sidebar: #e9ecea;
+  --sidebar-foreground: #12151a;
+  --sidebar-primary: #12151a;
+  --sidebar-primary-foreground: #f2f4f3;
+  --sidebar-accent: #e4e8e6;
+  --sidebar-accent-foreground: #12151a;
+  --sidebar-border: #d9dedb;
+  --sidebar-ring: #55606e;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
