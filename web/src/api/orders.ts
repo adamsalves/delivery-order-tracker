@@ -27,7 +27,16 @@ export function listOrders({
 
   if (page !== undefined) query.set("page", String(page));
   if (size !== undefined) query.set("size", String(size));
-  if (sort !== undefined) query.set("sort", `${sort},${direction}`);
+
+  /*
+   * A sort of our own replaces the controller's default outright, including the id it breaks ties
+   * with. Without carrying that tie-breaker over, two orders sharing a value can swap places
+   * between requests and appear on two pages or on none.
+   */
+  if (sort !== undefined) {
+    query.append("sort", `${sort},${direction}`);
+    if (sort !== "id") query.append("sort", `id,${direction}`);
+  }
 
   const suffix = query.size > 0 ? `?${query}` : "";
 
