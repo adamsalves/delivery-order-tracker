@@ -1,3 +1,4 @@
+import { clearSession, getSession } from "@/auth/session";
 import type { ProblemDetail } from "./types";
 
 const API_URL = (
@@ -12,8 +13,13 @@ export class ApiError extends Error {
   readonly problem: ProblemDetail | null;
   readonly fieldErrors: Record<string, string[]>;
 
-  constructor(status: number, message: string, problem: ProblemDetail | null) {
-    super(message);
+  constructor(
+    status: number,
+    message: string,
+    problem: ProblemDetail | null,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
     this.name = "ApiError";
     this.status = status;
     this.problem = problem;
@@ -21,33 +27,14 @@ export class ApiError extends Error {
   }
 }
 
-type TokenProvider = () => string | null;
-type UnauthorizedHandler = () => void;
-
-let readToken: TokenProvider = () => null;
-let onUnauthorized: UnauthorizedHandler = () => {};
-
-/**
- * Wired by the auth provider instead of imported from it. Reaching for the context here would
- * close a cycle — the context calls the client to log in, and the client would call the context to
- * read the token.
- */
-export function setTokenProvider(provider: TokenProvider) {
-  readToken = provider;
-}
-
-export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
-  onUnauthorized = handler;
-}
-
 interface RequestOptions {
   method?: string;
   body?: unknown;
   /**
    * Whether the call carries the session token. It also decides who owns a 401: an authenticated
-   * call that gets one has an expired session, but /api/auth/login answers 401 for a wrong
-   * password, and treating that as an expiry would bounce the login screen off itself and swallow
-   * the message.
+   * call that gets one has a session that is no longer good, but /api/auth/login answers 401 for a
+   * wrong password, and forgetting the session there would bounce the login screen off itself and
+   * swallow the message.
    */
   auth: boolean;
   signal?: AbortSignal;
@@ -65,8 +52,8 @@ export async function request<T>(
   }
 
   if (auth) {
-    const token = readToken();
-    if (token) {
+    const token = getSession()?.token;
+    if (token !== undefined) {
       headers.Authorization = `Bearer ${token}`;
     }
   }
@@ -87,14 +74,15 @@ export async function request<T>(
       NETWORK_ERROR_STATUS,
       `Could not reach the API at ${API_URL}`,
       null,
+      { cause },
     );
   }
 
   if (!response.ok) {
-    const problem = await readProblem(response);
+    const problem = await readJson<ProblemDetail>(response);
 
     if (response.status === 401 && auth) {
-      onUnauthorized();
+      clearSession();
     }
 
     throw new ApiError(
@@ -108,16 +96,27 @@ export async function request<T>(
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const payload = await readJson<T>(response);
+
+  if (payload === null) {
+    throw new ApiError(
+      response.status,
+      `Response to ${path} was not readable as JSON`,
+      null,
+    );
+  }
+
+  return payload;
 }
 
 /**
- * A failure is not obliged to carry a body — 401s refused in the filter chain sometimes do not —
- * so an unreadable one leaves the status to speak for itself rather than becoming a second error.
+ * A body is not obliged to be readable — a failure refused in the filter chain may carry none, and
+ * an interposed proxy can answer 200 with a page. Either way it becomes one ApiError rather than a
+ * parser error escaping past the callers that only expect that type.
  */
-async function readProblem(response: Response): Promise<ProblemDetail | null> {
+async function readJson<T>(response: Response): Promise<T | null> {
   try {
-    return (await response.json()) as ProblemDetail;
+    return (await response.json()) as T;
   } catch {
     return null;
   }
