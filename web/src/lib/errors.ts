@@ -3,26 +3,38 @@ import { ApiError, NETWORK_ERROR_STATUS } from "@/api/client";
 const UNEXPECTED = "Não foi possível concluir a operação. Tente novamente.";
 
 /**
- * The API answers in English, so a refusal the UI can anticipate is restated in Portuguese. What
- * is not on this list falls back to the detail the API sent: a message that arrived is never
- * traded for "erro desconhecido".
+ * The only refusal answered by status alone, because it is the only one that arrives without a
+ * reply to quote.
  */
-const BY_STATUS: Record<number, string> = {
+const NO_REPLY: Record<number, string> = {
   [NETWORK_ERROR_STATUS]:
     "Não foi possível falar com o servidor. Verifique se a API está no ar.",
-  401: "E-mail ou senha incorretos.",
-  403: "Você não tem permissão para isso.",
-  409: "Este e-mail já está cadastrado.",
 };
 
-export function describeError(error: unknown): string {
+export type StatusMessages = Record<number, string>;
+
+/**
+ * Restating a refusal in Portuguese is the screen's call, not this module's: one status covers more
+ * than one refusal. A 409 is a duplicate e-mail on the register screen and an illegal status
+ * transition everywhere else, and fixing a text to the status would show the wrong one while
+ * discarding the message that names the transitions actually open.
+ */
+export function describeError(
+  error: unknown,
+  onStatus: StatusMessages = {},
+): string {
   if (!(error instanceof ApiError)) return UNEXPECTED;
 
   if (Object.keys(error.fieldErrors).length > 0) {
     return "Confira os campos destacados.";
   }
 
-  return BY_STATUS[error.status] ?? error.problem?.detail ?? UNEXPECTED;
+  return (
+    onStatus[error.status] ??
+    NO_REPLY[error.status] ??
+    error.problem?.detail ??
+    UNEXPECTED
+  );
 }
 
 /** One field can break more than one rule, so the API sends a list and the first one is shown. */

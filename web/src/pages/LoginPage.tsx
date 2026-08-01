@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { describeError, fieldErrorOf } from "@/lib/errors";
 
+/** The call goes out unauthenticated, so a 401 here is the password and never an expired session. */
+const WRONG_CREDENTIALS = { 401: "E-mail ou senha incorretos." };
+
 interface FieldErrors {
   email?: string;
   password?: string;
@@ -75,7 +78,9 @@ export function LoginPage() {
 
       {failure !== null && (
         <Alert variant="destructive">
-          <AlertDescription>{describeError(failure)}</AlertDescription>
+          <AlertDescription>
+            {describeError(failure, WRONG_CREDENTIALS)}
+          </AlertDescription>
         </Alert>
       )}
 

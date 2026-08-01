@@ -10,6 +10,12 @@ import { describeError, fieldErrorOf } from "@/lib/errors";
 
 const MIN_PASSWORD_LENGTH = 8;
 
+/** BCrypt's own ceiling, which the API enforces. Counted in bytes, so an accent costs two. */
+const MAX_PASSWORD_BYTES = 72;
+
+/** Register is the only call that can conflict, so a 409 here is never a status transition. */
+const EMAIL_TAKEN = { 409: "Este e-mail já está cadastrado." };
+
 interface FieldErrors {
   name?: string;
   email?: string;
@@ -27,6 +33,8 @@ function validate(name: string, email: string, password: string): FieldErrors {
   if (password === "") errors.password = "Informe uma senha.";
   else if (password.length < MIN_PASSWORD_LENGTH) {
     errors.password = `A senha precisa de ao menos ${MIN_PASSWORD_LENGTH} caracteres.`;
+  } else if (new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES) {
+    errors.password = `A senha é longa demais (máximo de ${MAX_PASSWORD_BYTES} bytes; acentos contam como dois).`;
   }
 
   return errors;
@@ -80,7 +88,9 @@ export function RegisterPage() {
 
       {failure !== null && (
         <Alert variant="destructive">
-          <AlertDescription>{describeError(failure)}</AlertDescription>
+          <AlertDescription>
+            {describeError(failure, EMAIL_TAKEN)}
+          </AlertDescription>
         </Alert>
       )}
 
