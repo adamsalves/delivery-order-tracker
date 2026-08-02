@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import type { OrderDetail } from "@/api/types";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import { OrderStatusTimeline } from "@/components/OrderStatusTimeline";
+import { OrderTransitions } from "@/components/OrderTransitions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useOrder } from "@/hooks/useOrder";
@@ -28,7 +29,7 @@ export function OrderDetailPage() {
 }
 
 function LoadedOrder({ id }: { id: number }) {
-  const { order, phase, error, reload } = useOrder(id);
+  const { order, phase, error, replace, reload } = useOrder(id);
 
   if (phase === "loading") {
     return (
@@ -60,6 +61,7 @@ function LoadedOrder({ id }: { id: number }) {
     <div className="space-y-8">
       <BackLink />
       <Header order={order} />
+      <OrderTransitions order={order} onMoved={replace} />
       <OrderStatusTimeline history={order.history} />
       <Items order={order} />
     </div>
