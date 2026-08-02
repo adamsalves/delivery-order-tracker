@@ -54,35 +54,42 @@ export function OrderStatusTimeline({ history }: OrderStatusTimelineProps) {
     <section className="space-y-3">
       <h2 className="font-display text-lg font-semibold">Histórico</h2>
 
-      <ol className="border-border bg-card rounded-lg border px-4 py-4">
-        {FORWARD_STATUSES.map((step, index) => {
-          const entry = reached.get(step);
-          const next = FORWARD_STATUSES[index + 1];
+      <div className="border-border bg-card rounded-lg border px-4 py-4">
+        <ol>
+          {FORWARD_STATUSES.map((step, index) => {
+            const entry = reached.get(step);
+            const next = FORWARD_STATUSES[index + 1];
 
-          return (
-            <Step
-              key={step}
-              status={step}
-              entry={entry}
-              current={step === current}
-              /*
-               * Once cancelled, the steps left undone were not merely skipped for now — the order
-               * stopped before them, and they will never be reached.
-               */
-              interrupted={entry === undefined && cancellation !== undefined}
-              /*
-               * The connector is only coloured while both of its ends were reached, so it turns
-               * grey exactly where the order stopped rather than at the end of the list.
-               */
-              continues={next !== undefined && reached.has(next)}
-              last={
-                index === FORWARD_STATUSES.length - 1 &&
-                cancellation === undefined
-              }
-            />
-          );
-        })}
+            return (
+              <Step
+                key={step}
+                status={step}
+                entry={entry}
+                current={step === current}
+                /*
+                 * Once cancelled, the steps left undone were not merely skipped for now — the order
+                 * stopped before them, and they will never be reached.
+                 */
+                interrupted={entry === undefined && cancellation !== undefined}
+                /*
+                 * The connector is only coloured while both of its ends were reached, so it turns
+                 * grey exactly where the order stopped rather than at the end of the list.
+                 */
+                continues={next !== undefined && reached.has(next)}
+                last={
+                  index === FORWARD_STATUSES.length - 1 &&
+                  cancellation === undefined
+                }
+              />
+            );
+          })}
+        </ol>
 
+        {/*
+         * Outside the list of steps, because it is not one. Counted as its fifth item, a screen
+         * reader would announce it as coming after ENTREGUE — the reading the drawing spends its
+         * greyed connector and struck-through labels avoiding.
+         */}
         {cancellation !== undefined && (
           <Step
             status="CANCELADO"
@@ -94,7 +101,7 @@ export function OrderStatusTimeline({ history }: OrderStatusTimelineProps) {
             branch
           />
         )}
-      </ol>
+      </div>
     </section>
   );
 }
@@ -119,9 +126,13 @@ function Step({
   branch = false,
 }: StepProps) {
   const done = entry !== undefined;
+  const Row = branch ? "div" : "li";
 
   return (
-    <li className="grid grid-cols-[1.5rem_1fr] gap-x-3">
+    <Row
+      className="grid grid-cols-[1.5rem_1fr] gap-x-3"
+      aria-current={current ? "step" : undefined}
+    >
       <div className="flex flex-col items-center">
         <span
           className={cn(
@@ -152,7 +163,7 @@ function Step({
           className={cn(
             "text-sm font-medium",
             !done && "text-muted-foreground",
-            interrupted && "text-muted-foreground/60 line-through",
+            interrupted && "line-through",
           )}
         >
           {STATUS_LABELS[status]}
@@ -167,11 +178,11 @@ function Step({
             <span className="font-mono">{entry.changedBy}</span>
           </p>
         ) : (
-          <p className="text-muted-foreground/60 mt-0.5 text-xs">
+          <p className="text-muted-foreground mt-0.5 text-xs">
             {interrupted ? "Não alcançado" : "Pendente"}
           </p>
         )}
       </div>
-    </li>
+    </Row>
   );
 }
