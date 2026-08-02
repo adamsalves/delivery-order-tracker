@@ -300,6 +300,10 @@ Os testes não precisam do `.env`: eles usam um segredo fixo e bancos próprios 
 classe que escreve aponta para um arquivo só seu, para que uma não veja as linhas
 da outra. O banco de desenvolvimento em `api/data/` não é tocado.
 
+A listagem tem cobertura de paginação e ordenação — tamanho de página, teto,
+direção, página além do fim e as propriedades que ela recusa ordenar. O CORS e o
+round-trip de criação de pedido também estão cobertos.
+
 O front ainda não tem suíte — está listado em [Próximos passos](#próximos-passos).
 
 ## Formatação
@@ -332,6 +336,16 @@ qualquer read-modify-write (a troca de status é um) devolvia 500 com dois
 clientes simultâneos. Tomar o lock na abertura transforma disputa em espera. Os
 parâmetros vão como propriedades do driver, e não na URL, porque cada classe de
 teste sobrescreve a URL e perderia o que estivesse escrito nela.
+
+**As colunas são criadas na ordem em que estão declaradas.** O Hibernate reordena
+as colunas ao criar uma tabela, e nesse caminho uma coluna de identidade sai sem
+tipo nenhum: `id` em vez de `id integer`. O SQLite só preenche sozinho a chave
+primária que ele tipou como INTEGER, e deixa passar `NULL` na que não tipou — o
+item era gravado sem id, e o Hibernate, lendo o pedido de volta pelo join, via um
+identificador nulo e o tomava por linha ausente. O pedido voltava sem itens. O
+`ddl-auto=update` nunca reordenou, então só um schema criado do zero era
+afetado: toda execução de teste. `column_ordering_strategy=legacy` faz os dois
+caminhos produzirem a mesma tabela.
 
 **A listagem é paginada desde o começo.** Devolver a tabela inteira numa resposta
 só não escala, e sem `ORDER BY` a ordem das linhas fica a critério do banco. A
@@ -389,8 +403,6 @@ Fora do escopo do desafio, na ordem em que fariam mais diferença:
 - **Suíte de testes no front.** Não há runner configurado em `web/`. Vitest com
   Testing Library cobriria o parser de resposta, a máquina de transições da tela
   de detalhe e o formulário de criação.
-- **Testes de paginação na API.** O 400 da ordenação inválida está coberto, mas
-  tamanho de página, direção e limites de página ainda não.
 - **Filtro por status na listagem.** O caminho natural depois da ordenação.
 - **Refresh token.** Hoje a sessão dura 24h e acaba de uma vez; um refresh
   encurtaria o token de acesso sem obrigar um novo login.
