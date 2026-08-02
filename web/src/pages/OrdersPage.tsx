@@ -10,7 +10,17 @@ import { describeError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
 
 export function OrdersPage() {
-  const { orders, page, phase, error, reload } = useOrderList();
+  const {
+    orders,
+    page,
+    phase,
+    error,
+    hasMore,
+    loadingMore,
+    loadMoreError,
+    loadMore,
+    reload,
+  } = useOrderList();
 
   return (
     <section className="space-y-6">
@@ -74,6 +84,21 @@ export function OrdersPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {loadMoreError !== null && (
+        <Alert variant="destructive">
+          <AlertDescription>{describeError(loadMoreError)}</AlertDescription>
+        </Alert>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore && <Loader2 className="animate-spin" />}
+            {loadingMore ? "Carregando…" : "Carregar mais"}
+          </Button>
+        </div>
       )}
     </section>
   );
