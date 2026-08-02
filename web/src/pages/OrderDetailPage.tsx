@@ -148,14 +148,26 @@ function Items({ order }: { order: OrderDetail }) {
     <section className="space-y-3">
       <h2 className="font-display text-lg font-semibold">Itens</h2>
 
-      <div className="border-border bg-card overflow-x-auto rounded-lg border">
+      {/* Focusable so the overflow can be reached by keyboard when the viewport clips the table. */}
+      <div
+        tabIndex={0}
+        className="border-border bg-card focus-visible:ring-ring/50 overflow-x-auto rounded-lg border focus-visible:ring-3 focus-visible:outline-none"
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="border-border text-muted-foreground border-b text-left text-xs tracking-wide uppercase">
-              <th className="px-4 py-2 font-medium">Item</th>
-              <th className="px-4 py-2 text-right font-medium">Qtd.</th>
-              <th className="px-4 py-2 text-right font-medium">Preço unit.</th>
-              <th className="px-4 py-2 text-right font-medium">Subtotal</th>
+              <th scope="col" className="px-4 py-2 font-medium">
+                Item
+              </th>
+              <th scope="col" className="px-4 py-2 text-right font-medium">
+                Qtd.
+              </th>
+              <th scope="col" className="px-4 py-2 text-right font-medium">
+                Preço unit.
+              </th>
+              <th scope="col" className="px-4 py-2 text-right font-medium">
+                Subtotal
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -179,9 +191,13 @@ function Items({ order }: { order: OrderDetail }) {
           </tbody>
           <tfoot>
             <tr className="border-border border-t">
-              <td className="px-4 py-2 font-medium" colSpan={3}>
+              <th
+                scope="row"
+                colSpan={3}
+                className="px-4 py-2 text-left font-medium"
+              >
                 Total
-              </td>
+              </th>
               <td className="px-4 py-2 text-right font-mono font-medium tabular-nums">
                 {formatCurrency(total)}
               </td>
