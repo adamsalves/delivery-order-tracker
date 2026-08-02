@@ -141,12 +141,17 @@ export function NewOrderPage() {
         </Alert>
       )}
 
+      {/*
+       * autoComplete off throughout: these say who the order is for and where it goes, and the
+       * browser would offer the name and address of whoever is at the counter typing it.
+       */}
       <form onSubmit={handleSubmit} noValidate className="space-y-8">
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="customerName">Cliente</Label>
             <Input
               id="customerName"
+              autoComplete="off"
               value={form.customerName}
               disabled={pending}
               onChange={(event) => form.setCustomerName(event.target.value)}
@@ -166,6 +171,7 @@ export function NewOrderPage() {
             <Label htmlFor="deliveryAddress">Endereço de entrega</Label>
             <Input
               id="deliveryAddress"
+              autoComplete="off"
               value={form.deliveryAddress}
               disabled={pending}
               onChange={(event) => form.setDeliveryAddress(event.target.value)}
