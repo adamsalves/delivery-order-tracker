@@ -81,10 +81,10 @@ class ApiErrorResponseTests {
 
     /**
      * The stock messages read in one language and ours in another would make the payload bilingual,
-     * so this pins the half we do not write. Hibernate Validator ships a bundle per locale and is
-     * the usual reason an API answers "não deve estar em branco" next to an English detail, but
-     * neither Accept-Language nor the locale the JVM starts in reaches it here — checked against a
-     * running instance under both. These cases are what would notice if that stopped being true.
+     * so this pins the half we do not write. Hibernate Validator ships a bundle per locale and
+     * resolves it from Accept-Language, which is the usual reason an API answers "não deve estar em
+     * branco" next to an English detail. What keeps it from happening here is a fixed locale, set
+     * in application.properties; these cases are what would notice if that were dropped.
      */
     @ParameterizedTest
     @ValueSource(strings = {"pt-BR", "pt", "en", "de"})
