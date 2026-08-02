@@ -65,9 +65,19 @@ export interface OrderForm {
   addItem: () => string;
   removeItem: (id: string) => void;
   updateItem: (id: string, patch: Partial<Omit<ItemDraft, "id">>) => void;
-  /** The body to send, or null with the errors already published. */
-  validate: () => CreateOrderRequest | null;
+  /** The body to send, or null; either way the errors it found come back with it. */
+  validate: () => Validation;
   applyServerErrors: (error: unknown) => void;
+}
+
+/**
+ * The errors travel back rather than only into state, because the caller has to act on them in the
+ * same tick — moving the focus to what broke — and a setState is not readable that soon. Which
+ * element that is stays the screen's business: this side names the field, not the input.
+ */
+export interface Validation {
+  body: CreateOrderRequest | null;
+  errors: OrderFormErrors;
 }
 
 function emptyItem(): ItemDraft {
@@ -139,7 +149,7 @@ export function useOrderForm(): OrderForm {
     [items],
   );
 
-  const validate = useCallback((): CreateOrderRequest | null => {
+  const validate = useCallback((): Validation => {
     const found: OrderFormErrors = { byItem: {} };
 
     found.customerName = checkText(customerName, "Informe o cliente.");
@@ -164,12 +174,15 @@ export function useOrderForm(): OrderForm {
 
     setErrors(found);
 
-    if (broken(found)) return null;
+    if (broken(found)) return { body: null, errors: found };
 
     return {
-      customerName: customerName.trim(),
-      deliveryAddress: deliveryAddress.trim(),
-      items: sending,
+      body: {
+        customerName: customerName.trim(),
+        deliveryAddress: deliveryAddress.trim(),
+        items: sending,
+      },
+      errors: found,
     };
   }, [customerName, deliveryAddress, items]);
 

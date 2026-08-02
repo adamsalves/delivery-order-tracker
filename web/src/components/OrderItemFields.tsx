@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ItemDraft, ItemErrors } from "@/hooks/useOrderForm";
+import { itemFieldId } from "@/lib/fieldIds";
 
 interface OrderItemFieldsProps {
   item: ItemDraft;
@@ -29,7 +30,7 @@ export function OrderItemFields({
   onChange,
   onRemove,
 }: OrderItemFieldsProps) {
-  const at = (field: string) => `item-${item.id}-${field}`;
+  const at = (field: keyof ItemErrors) => itemFieldId(item.id, field);
 
   return (
     <li className="border-border grid gap-3 border-b px-4 py-4 last:border-0 sm:grid-cols-[1fr_6rem_8rem_auto] sm:items-start">
@@ -63,9 +64,9 @@ export function OrderItemFields({
         />
       </Field>
 
-      <Field id={at("price")} label="Preço unit." error={errors.unitPrice}>
+      <Field id={at("unitPrice")} label="Preço unit." error={errors.unitPrice}>
         <Input
-          id={at("price")}
+          id={at("unitPrice")}
           inputMode="decimal"
           value={item.unitPrice}
           disabled={disabled}
@@ -73,7 +74,7 @@ export function OrderItemFields({
           className="text-right font-mono tabular-nums"
           onChange={(event) => onChange({ unitPrice: event.target.value })}
           aria-invalid={errors.unitPrice !== undefined}
-          aria-describedby={errors.unitPrice && `${at("price")}-error`}
+          aria-describedby={errors.unitPrice && `${at("unitPrice")}-error`}
         />
       </Field>
 

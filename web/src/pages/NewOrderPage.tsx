@@ -7,8 +7,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useOrderForm } from "@/hooks/useOrderForm";
+import {
+  useOrderForm,
+  type ItemDraft,
+  type OrderFormErrors,
+} from "@/hooks/useOrderForm";
 import { describeError } from "@/lib/errors";
+import { itemFieldId, type ItemField } from "@/lib/fieldIds";
 import { formatCents } from "@/lib/money";
 
 export function NewOrderPage() {
@@ -43,7 +48,7 @@ export function NewOrderPage() {
     const id = form.addItem();
 
     requestAnimationFrame(() => {
-      document.getElementById(`item-${id}-name`)?.focus();
+      document.getElementById(itemFieldId(id, "name"))?.focus();
     });
   }
 
@@ -56,8 +61,18 @@ export function NewOrderPage() {
     event.preventDefault();
     setFailure(null);
 
-    const body = form.validate();
-    if (body === null) return;
+    const { body, errors } = form.validate();
+
+    /*
+     * The messages appear under the fields, and on a form this tall the field that broke can be off
+     * the bottom of the window — pressing the button would look like it did nothing at all. Focus
+     * goes to the first one, which scrolls it into view and reads its message out.
+     */
+    if (body === null) {
+      document.getElementById(firstBroken(form.items, errors) ?? "")?.focus();
+
+      return;
+    }
 
     setPending(true);
     try {
@@ -220,4 +235,27 @@ export function NewOrderPage() {
       </form>
     </div>
   );
+}
+
+/** The order they are read in, so focus lands on the first thing wrong rather than the first found. */
+const ITEM_FIELDS: readonly ItemField[] = ["name", "quantity", "unitPrice"];
+
+/** The id of the input to send focus to, or undefined when nothing broke. */
+function firstBroken(
+  items: ItemDraft[],
+  errors: OrderFormErrors,
+): string | undefined {
+  if (errors.customerName !== undefined) return "customerName";
+  if (errors.deliveryAddress !== undefined) return "deliveryAddress";
+
+  for (const item of items) {
+    const broken = errors.byItem[item.id];
+    if (broken === undefined) continue;
+
+    for (const field of ITEM_FIELDS) {
+      if (broken[field] !== undefined) return itemFieldId(item.id, field);
+    }
+  }
+
+  return undefined;
 }
