@@ -14,6 +14,7 @@ const COUNTED = /^\d+$/;
 const PRICE_PROBLEMS: Record<AmountProblem, string> = {
   missing: "Informe o preço.",
   malformed: "Use apenas números e uma vírgula, como 45,90.",
+  grouped: "Não separe o milhar: escreva 1234,00.",
   notPositive: "O preço precisa ser maior que zero.",
   tooLarge: "Preço alto demais.",
   tooPrecise: "No máximo duas casas decimais.",

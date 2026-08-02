@@ -5,7 +5,12 @@ import { formatCurrency } from "@/lib/format";
  * wording, the same way describeError leaves the phrasing of a refusal to the caller.
  */
 export type AmountProblem =
-  "missing" | "malformed" | "notPositive" | "tooLarge" | "tooPrecise";
+  | "missing"
+  | "malformed"
+  | "grouped"
+  | "notPositive"
+  | "tooLarge"
+  | "tooPrecise";
 
 export type Amount =
   | { valid: true; cents: number; text: string }
@@ -13,14 +18,24 @@ export type Amount =
 
 /**
  * Digits with at most one decimal mark, comma or dot, since pt-BR writes the comma and the keypad
- * offers the dot. A group separator is refused rather than guessed at: "1.234" is either one
- * thousand or one and a bit, and reading it wrong changes the price by a factor of a thousand.
+ * offers the dot. The mark itself is captured because which one was typed decides what a refusal
+ * is called: nothing here is ever guessed at, but the reader has to be told the right thing.
  */
-const WRITTEN = /^(\d+)(?:[.,](\d+))?$/;
+const WRITTEN = /^(\d+)(?:([.,])(\d+))?$/;
 
 /** Mirrors @Digits(integer = 10, fraction = 2) on CreateOrderItemRequest.unitPrice. */
 const MAX_INTEGER_DIGITS = 10;
 const FRACTION_DIGITS = 2;
+
+/**
+ * A dot and exactly three digits is how pt-BR writes a thousand, so "1.234" is refused as a group
+ * separator rather than as a price with three decimal places — reading it as the latter changes
+ * what is being said to the reader, who wrote one thousand two hundred and thirty-four.
+ *
+ * <p>A comma in that position is not the same case: the comma is the decimal mark here, so "1,234"
+ * really is a price written to three places and is answered as one.
+ */
+const GROUP_DIGITS = 3;
 
 const CENTS_PER_UNIT = 100;
 
@@ -37,9 +52,13 @@ export function readAmount(raw: string): Amount {
   const parts = WRITTEN.exec(written);
   if (parts === null) return { valid: false, problem: "malformed" };
 
-  /* Both groups are defaulted only to satisfy the index check: group one is not optional, and the
-   * empty string it would stand in for reads as zero and is refused two steps below anyway. */
-  const [, whole = "", fraction = ""] = parts;
+  /* The groups are defaulted only to satisfy the index check: group one is not optional, and the
+   * empty string it would stand in for reads as zero and is refused three steps below anyway. */
+  const [, whole = "", mark = "", fraction = ""] = parts;
+
+  if (mark === "." && fraction.length === GROUP_DIGITS) {
+    return { valid: false, problem: "grouped" };
+  }
 
   if (fraction.length > FRACTION_DIGITS) {
     return { valid: false, problem: "tooPrecise" };
