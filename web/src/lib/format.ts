@@ -4,8 +4,6 @@ const DATE_TIME = new Intl.DateTimeFormat("pt-BR", {
   timeStyle: "short",
 });
 
-const TIME = new Intl.DateTimeFormat("pt-BR", { timeStyle: "short" });
-
 const CURRENCY = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -13,10 +11,6 @@ const CURRENCY = new Intl.NumberFormat("pt-BR", {
 
 export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso));
-}
-
-export function formatTime(iso: string): string {
-  return TIME.format(new Date(iso));
 }
 
 /**

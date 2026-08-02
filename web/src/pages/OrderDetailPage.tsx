@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import type { OrderDetail } from "@/api/types";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
+import { OrderStatusTimeline } from "@/components/OrderStatusTimeline";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useOrder } from "@/hooks/useOrder";
@@ -59,6 +60,7 @@ function LoadedOrder({ id }: { id: number }) {
     <div className="space-y-8">
       <BackLink />
       <Header order={order} />
+      <OrderStatusTimeline history={order.history} />
       <Items order={order} />
     </div>
   );
