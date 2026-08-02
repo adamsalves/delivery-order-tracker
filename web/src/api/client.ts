@@ -136,10 +136,10 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
 
     /*
      * A refusal is the answer most likely to arrive from something other than the API — a proxy
-     * page, a gateway notice — so what came back is checked before being called a problem detail
-     * rather than assumed to be one.
+     * page, a gateway notice — so what came back is rebuilt member by member rather than renamed
+     * into the shape and hoped over.
      */
-    const problem = isProblemDetail(failure) ? failure : null;
+    const problem = toProblemDetail(failure);
 
     throw new ApiError(
       response.status,
@@ -164,21 +164,52 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-/** status is the only member RFC 9457 requires, and the only one read without a guard. */
-function isProblemDetail(value: unknown): value is ProblemDetail {
-  if (typeof value !== "object" || value === null) return false;
-  if (!("status" in value) || typeof value.status !== "number") return false;
+/**
+ * status is the only member RFC 9457 requires; the rest are taken when they are the right kind and
+ * dropped when they are not. Built rather than claimed, so the type is a consequence of the checks
+ * and not a promise about them.
+ */
+function toProblemDetail(value: unknown): ProblemDetail | null {
+  if (typeof value !== "object" || value === null) return null;
 
-  return !("errors" in value) || isFieldErrors(value.errors);
+  const found = new Map<string, unknown>(Object.entries(value));
+  const status = found.get("status");
+
+  if (typeof status !== "number") return null;
+
+  return {
+    status,
+    type: optionalText(found.get("type")),
+    title: optionalText(found.get("title")),
+    detail: optionalText(found.get("detail")),
+    instance: optionalText(found.get("instance")),
+    errors: toFieldErrors(found.get("errors")),
+  };
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 /** One field can break more than one rule, so each entry is a list and every item is a message. */
-function isFieldErrors(value: unknown): value is Record<string, string[]> {
-  if (typeof value !== "object" || value === null) return false;
+function toFieldErrors(value: unknown): Record<string, string[]> | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
 
-  return Object.values(value).every(
-    (messages) =>
-      Array.isArray(messages) &&
-      messages.every((message) => typeof message === "string"),
-  );
+  const byField: Record<string, string[]> = {};
+
+  for (const [field, messages] of Object.entries(value)) {
+    if (!Array.isArray(messages)) return undefined;
+
+    const listed: unknown[] = messages;
+    const rules: string[] = [];
+
+    for (const message of listed) {
+      if (typeof message !== "string") return undefined;
+      rules.push(message);
+    }
+
+    byField[field] = rules;
+  }
+
+  return byField;
 }
