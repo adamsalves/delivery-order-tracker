@@ -41,15 +41,17 @@ function writeStored(value: string | null): void {
   }
 }
 
+/** Every member is read off the parsed value, so every member is checked before one is claimed. */
 function isSession(value: unknown): value is Session {
   if (typeof value !== "object" || value === null) return false;
 
-  const candidate = value as Record<string, unknown>;
-
   return (
-    typeof candidate.token === "string" &&
-    typeof candidate.email === "string" &&
-    typeof candidate.expiresAt === "number"
+    "token" in value &&
+    typeof value.token === "string" &&
+    "email" in value &&
+    typeof value.email === "string" &&
+    "expiresAt" in value &&
+    typeof value.expiresAt === "number"
   );
 }
 
