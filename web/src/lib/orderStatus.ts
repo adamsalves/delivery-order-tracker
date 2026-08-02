@@ -1,4 +1,5 @@
 import type { OrderStatus } from "@/api/types";
+import { formatAlternatives } from "@/lib/format";
 
 /**
  * The one-way path. CANCELADO is missing on purpose: it leaves the path, it is not a step on it.
@@ -50,4 +51,27 @@ export function allowedTransitions(
 
 export function isTerminal(status: OrderStatus): boolean {
   return TRANSITIONS[status].length === 0;
+}
+
+/**
+ * Restates a refused transition in the language the rest of the screen speaks. The API answers 409
+ * with a sentence in English, and translating it would mean parsing prose; this is built instead
+ * from the same two tables the buttons are built from.
+ *
+ * <p>The status it names has to be read back from the server first. A refusal only happens when the
+ * order moved under the screen, so the copy held here is stale by definition — it is the one thing
+ * this module cannot supply.
+ */
+export function describeRefusal(current: OrderStatus): string {
+  const here = `O pedido está em «${STATUS_LABELS[current]}»`;
+
+  if (isTerminal(current)) {
+    return `${here}, que encerra o pedido e não admite outra mudança.`;
+  }
+
+  const open = allowedTransitions(current).map(
+    (status) => `«${STATUS_LABELS[status]}»`,
+  );
+
+  return `${here}. Daqui ele só pode ir para ${formatAlternatives(open)}.`;
 }

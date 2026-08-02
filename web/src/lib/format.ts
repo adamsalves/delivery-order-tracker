@@ -9,6 +9,8 @@ const CURRENCY = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+const ALTERNATIVES = new Intl.ListFormat("pt-BR", { type: "disjunction" });
+
 export function formatDateTime(iso: string): string {
   return DATE_TIME.format(new Date(iso));
 }
@@ -19,4 +21,9 @@ export function formatDateTime(iso: string): string {
  */
 export function formatCurrency(value: number): string {
   return CURRENCY.format(value);
+}
+
+/** Joins with "ou" rather than a comma, since the items are choices and not a sequence. */
+export function formatAlternatives(items: string[]): string {
+  return ALTERNATIVES.format(items);
 }
