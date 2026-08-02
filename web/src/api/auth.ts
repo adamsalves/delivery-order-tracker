@@ -1,4 +1,4 @@
-import { request } from "./client";
+import { request, requestEmpty } from "./client";
 import type {
   LoginRequest,
   LoginResponse,
@@ -24,5 +24,5 @@ export function login(body: LoginRequest) {
 
 /** Revokes the token that authorises the call, so it carries no body of its own. */
 export function logout() {
-  return request<void>("/api/auth/logout", { method: "POST", auth: true });
+  return requestEmpty("/api/auth/logout", { method: "POST", auth: true });
 }

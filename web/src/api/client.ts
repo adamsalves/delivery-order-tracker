@@ -40,10 +40,40 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * For the calls that answer with a representation. A body that is missing or unreadable is a
+ * failure here, not an empty result: every caller of this asked for something back.
+ */
 export async function request<T>(
   path: string,
   options: RequestOptions,
 ): Promise<T> {
+  const response = await send(path, options);
+  const payload = await readJson(response);
+
+  if (payload === null) {
+    throw new ApiError(
+      response.status,
+      `Response to ${path} was not readable as JSON`,
+      null,
+    );
+  }
+
+  return fromWire<T>(payload);
+}
+
+/**
+ * For the calls the API answers 204 to. Kept apart from request so that no body has to be invented
+ * to satisfy a type: a caller that asks for nothing is told it got nothing.
+ */
+export async function requestEmpty(
+  path: string,
+  options: RequestOptions,
+): Promise<void> {
+  await send(path, options);
+}
+
+async function send(path: string, options: RequestOptions): Promise<Response> {
   const { method = "GET", body, auth, signal } = options;
   const headers: Record<string, string> = {};
 
@@ -79,11 +109,18 @@ export async function request<T>(
   }
 
   if (!response.ok) {
-    const problem = await readJson<ProblemDetail>(response);
+    const failure = await readJson(response);
 
     if (response.status === 401 && auth) {
       clearSession();
     }
+
+    /*
+     * A refusal is the answer most likely to arrive from something other than the API — a proxy
+     * page, a gateway notice — so what came back is checked before being called a problem detail
+     * rather than assumed to be one.
+     */
+    const problem = isProblemDetail(failure) ? failure : null;
 
     throw new ApiError(
       response.status,
@@ -92,21 +129,16 @@ export async function request<T>(
     );
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
+  return response;
+}
 
-  const payload = await readJson<T>(response);
-
-  if (payload === null) {
-    throw new ApiError(
-      response.status,
-      `Response to ${path} was not readable as JSON`,
-      null,
-    );
-  }
-
-  return payload;
+/**
+ * The one place the wire is taken at its word. Nothing here proves the payload matches T — that
+ * would need a schema per endpoint — so the step is named and kept to a single line, rather than
+ * left as an assertion for each caller to repeat.
+ */
+function fromWire<T>(payload: unknown): T {
+  return payload as T;
 }
 
 /**
@@ -114,10 +146,29 @@ export async function request<T>(
  * an interposed proxy can answer 200 with a page. Either way it becomes one ApiError rather than a
  * parser error escaping past the callers that only expect that type.
  */
-async function readJson<T>(response: Response): Promise<T | null> {
+async function readJson(response: Response): Promise<unknown> {
   try {
-    return (await response.json()) as T;
+    return await response.json();
   } catch {
     return null;
   }
+}
+
+/** status is the only member RFC 9457 requires, and the only one read without a guard. */
+function isProblemDetail(value: unknown): value is ProblemDetail {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("status" in value) || typeof value.status !== "number") return false;
+
+  return !("errors" in value) || isFieldErrors(value.errors);
+}
+
+/** One field can break more than one rule, so each entry is a list and every item is a message. */
+function isFieldErrors(value: unknown): value is Record<string, string[]> {
+  if (typeof value !== "object" || value === null) return false;
+
+  return Object.values(value).every(
+    (messages) =>
+      Array.isArray(messages) &&
+      messages.every((message) => typeof message === "string"),
+  );
 }
