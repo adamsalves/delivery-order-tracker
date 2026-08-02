@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { createOrder } from "@/api/orders";
@@ -17,6 +17,21 @@ export function NewOrderPage() {
   const addRef = useRef<HTMLButtonElement>(null);
   const [failure, setFailure] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
+
+  /*
+   * Whether this screen is still the one on display. react-router's own guard does not answer that:
+   * useNavigate arms its active flag in a layout effect with no cleanup, so it stays armed for the
+   * life of the closure and a navigation fired after the screen is gone still goes through.
+   */
+  const showing = useRef(true);
+
+  useEffect(() => {
+    showing.current = true;
+
+    return () => {
+      showing.current = false;
+    };
+  }, []);
 
   /*
    * A row added or removed takes the control that was pressed with it, or arrives with nothing
@@ -47,6 +62,14 @@ export function NewOrderPage() {
     setPending(true);
     try {
       const created = await createOrder(body);
+
+      /*
+       * Only if the form is still on screen. Leaving while the request is in flight — the Cancel
+       * link beside the button, the browser's back, anything in the header — is a decision not to
+       * be taken to the order, and the order exists either way. Travelling from here anyway would
+       * pull the reader off the page they chose, and `replace` would eat the entry they came from.
+       */
+      if (!showing.current) return;
 
       /*
        * Replaced rather than pushed: the form has been spent, and going back to it would offer a
