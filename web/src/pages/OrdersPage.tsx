@@ -6,9 +6,18 @@ import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import { StatusRail } from "@/components/StatusRail";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useOrderList } from "@/hooks/useOrderList";
 import { describeError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
+import { ORDER_SORT_IDS, ORDER_SORTS, isOrderSortId } from "@/lib/orderSort";
 
 export function OrdersPage() {
   const {
@@ -16,6 +25,9 @@ export function OrdersPage() {
     page,
     phase,
     error,
+    everLoaded,
+    sort,
+    setSort,
     hasMore,
     loadingMore,
     loadMoreError,
@@ -90,6 +102,36 @@ export function OrdersPage() {
           </Button>
         </div>
       </header>
+
+      {/*
+       * Kept mounted from the first page onwards, including while the order it was just given is
+       * being read. Hiding it during that read would take the focus off the control that started
+       * it — and the list it sorts is empty at that moment precisely because it was used.
+       */}
+      {everLoaded && (
+        <div className="flex items-center gap-2">
+          <Label htmlFor="order-sort" className="text-muted-foreground text-sm">
+            Ordenar por
+          </Label>
+          <Select
+            value={sort}
+            onValueChange={(chosen) => {
+              if (isOrderSortId(chosen)) setSort(chosen);
+            }}
+          >
+            <SelectTrigger id="order-sort" className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ORDER_SORT_IDS.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {ORDER_SORTS[id].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* A reload keeps the rows it already has on screen; only a first read has nothing to show. */}
       {phase === "loading" && orders.length === 0 && (
