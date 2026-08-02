@@ -281,6 +281,13 @@ O corpo do `401` não diz se o token faltou, expirou ou foi revogado. Isso é pa
 do header `WWW-Authenticate`; distinguir no corpo ajudaria a separar tokens
 válidos de inválidos.
 
+As mensagens saem sempre em inglês, inclusive as do Bean Validation, que são a
+metade da resposta que não escrevemos. O Hibernate Validator traz um bundle por
+locale e resolve pelo `Accept-Language`, então um `curl` de navegador brasileiro
+recebia `"não deve estar em branco"` ao lado de um `detail` em inglês. O locale
+é fixo (`spring.web.locale`), e a resposta não muda de idioma conforme quem
+pergunta.
+
 ## Testes
 
 ```bash
