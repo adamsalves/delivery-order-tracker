@@ -45,12 +45,20 @@ public class ApiTestClient {
     }
 
     public long createOrder(String token) throws Exception {
+        return createOrder(token, "Joana Ribeiro");
+    }
+
+    /**
+     * Naming the customer is what lets a test tell one order from another, which anything about the
+     * order they come back in needs.
+     */
+    public long createOrder(String token, String customerName) throws Exception {
         String body = mockMvc.perform(post("/api/orders")
                         .header(AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "customerName",
-                                "Joana Ribeiro",
+                                customerName,
                                 "deliveryAddress",
                                 "Rua das Flores, 128",
                                 "items",
