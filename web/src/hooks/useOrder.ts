@@ -35,6 +35,7 @@ export function useOrder(id: number): OrderResource {
 
     getOrder(id, controller.signal)
       .then((result) => {
+        if (controller.signal.aborted) return;
         setOrder(result);
         setPhase("ready");
       })
