@@ -83,8 +83,27 @@ export interface Validation {
   errors: OrderFormErrors;
 }
 
+let counted = 0;
+
+/**
+ * randomUUID is only there in a secure context. localhost and https both are, so this holds for
+ * every way the app is meant to be reached — but where it is missing the call throws, and it throws
+ * inside a state initialiser with no boundary above it, which blanks the screen rather than
+ * degrading. A counter is enough for what the id is for: it keys a list within one mounted form,
+ * never leaves the browser, and never has to be unique against anything it cannot see.
+ */
+function nextId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  counted += 1;
+
+  return `item-${counted}`;
+}
+
 function emptyItem(): ItemDraft {
-  return { id: crypto.randomUUID(), name: "", quantity: "1", unitPrice: "" };
+  return { id: nextId(), name: "", quantity: "1", unitPrice: "" };
 }
 
 export function useOrderForm(): OrderForm {
