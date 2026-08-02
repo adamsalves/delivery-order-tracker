@@ -135,16 +135,22 @@ export function useOrderForm(): OrderForm {
     [],
   );
 
+  /*
+   * Counted through the same checks the submit runs, and not a looser copy of them. Reading the
+   * quantity raw here while checkQuantity trimmed it meant " 2" was sent but left out of the total,
+   * so the figure on screen disagreed with the order that was placed.
+   *
+   * A line still being typed contributes nothing rather than poisoning the sum with NaN.
+   */
   const totalCents = useMemo(
     () =>
       items.reduce((sum, item) => {
         const price = readAmount(item.unitPrice);
-        const quantity = Number(item.quantity);
+        if (!price.valid || checkQuantity(item.quantity) !== undefined) {
+          return sum;
+        }
 
-        /* A line still being typed contributes nothing rather than poisoning the sum with NaN. */
-        return price.valid && COUNTED.test(item.quantity)
-          ? sum + price.cents * quantity
-          : sum;
+        return sum + price.cents * Number(item.quantity.trim());
       }, 0),
     [items],
   );
