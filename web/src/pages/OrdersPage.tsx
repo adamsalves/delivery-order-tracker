@@ -112,7 +112,18 @@ export function OrdersPage() {
        */}
       {everLoaded && (
         <div className="flex items-center gap-2">
-          <Label htmlFor="order-sort" className="text-muted-foreground text-sm">
+          {/*
+           * Named by reference and not only by htmlFor. A button is labelable, so the association
+           * is valid, but what a browser makes of it is its own business: the accessible name of a
+           * button is otherwise built from its own content, which here is the current value.
+           * Pointing at the label settles which of the two is the name, and leaves the value where
+           * a listbox already reports it.
+           */}
+          <Label
+            id="order-sort-label"
+            htmlFor="order-sort"
+            className="text-muted-foreground text-sm"
+          >
             Ordenar por
           </Label>
           <Select
@@ -121,7 +132,11 @@ export function OrdersPage() {
               if (isOrderSortId(chosen)) setSort(chosen);
             }}
           >
-            <SelectTrigger id="order-sort" className="w-48">
+            <SelectTrigger
+              id="order-sort"
+              aria-labelledby="order-sort-label"
+              className="w-48"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
