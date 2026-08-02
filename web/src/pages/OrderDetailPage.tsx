@@ -25,7 +25,9 @@ export function OrderDetailPage() {
     return <Missing />;
   }
 
-  return <LoadedOrder id={orderId} />;
+  /* Keyed so a different id starts over, instead of showing the previous order until the read
+   * lands. Reachable by editing the address or going back, which is where the two ids meet. */
+  return <LoadedOrder key={orderId} id={orderId} />;
 }
 
 function LoadedOrder({ id }: { id: number }) {
