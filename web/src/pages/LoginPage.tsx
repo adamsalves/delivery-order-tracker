@@ -16,6 +16,26 @@ interface FieldErrors {
   password?: string;
 }
 
+const AFTER_SIGN_IN = "/orders";
+
+/**
+ * RequireAuth puts where the visitor was headed in the navigation state, but that state lives in a
+ * history entry and anything can be sitting in one — a reload of a hand-built entry, a stale shape
+ * from an older build. It is read as unknown and only believed once every step of it holds up.
+ */
+function returnPath(state: unknown): string {
+  if (typeof state !== "object" || state === null || !("from" in state)) {
+    return AFTER_SIGN_IN;
+  }
+
+  const from = state.from;
+  if (typeof from !== "object" || from === null || !("pathname" in from)) {
+    return AFTER_SIGN_IN;
+  }
+
+  return typeof from.pathname === "string" ? from.pathname : AFTER_SIGN_IN;
+}
+
 function validate(email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -38,9 +58,7 @@ export function LoginPage() {
   const [failure, setFailure] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
 
-  const target =
-    (location.state as { from?: { pathname?: string } } | null)?.from
-      ?.pathname ?? "/orders";
+  const target = returnPath(location.state);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

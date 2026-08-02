@@ -1,10 +1,8 @@
 import { request } from "./client";
+import { orderDetail, orderSummaries } from "./parse";
 import type {
   CreateOrderRequest,
-  OrderDetail,
   OrderStatus,
-  OrderSummary,
-  Paged,
   SortableOrderProperty,
 } from "./types";
 
@@ -40,28 +38,29 @@ export function listOrders({
 
   const suffix = query.size > 0 ? `?${query}` : "";
 
-  return request<Paged<OrderSummary>>(`/api/orders${suffix}`, {
-    auth: true,
-    signal,
-  });
+  return request(
+    `/api/orders${suffix}`,
+    { auth: true, signal },
+    orderSummaries,
+  );
 }
 
 export function getOrder(id: number, signal?: AbortSignal) {
-  return request<OrderDetail>(`/api/orders/${id}`, { auth: true, signal });
+  return request(`/api/orders/${id}`, { auth: true, signal }, orderDetail);
 }
 
 export function createOrder(body: CreateOrderRequest) {
-  return request<OrderDetail>("/api/orders", {
-    method: "POST",
-    body,
-    auth: true,
-  });
+  return request(
+    "/api/orders",
+    { method: "POST", body, auth: true },
+    orderDetail,
+  );
 }
 
 export function updateOrderStatus(id: number, status: OrderStatus) {
-  return request<OrderDetail>(`/api/orders/${id}/status`, {
-    method: "PATCH",
-    body: { status },
-    auth: true,
-  });
+  return request(
+    `/api/orders/${id}/status`,
+    { method: "PATCH", body: { status }, auth: true },
+    orderDetail,
+  );
 }

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router";
 import { LoginPage } from "@/pages/LoginPage";
+import { NewOrderPage } from "@/pages/NewOrderPage";
 import { OrderDetailPage } from "@/pages/OrderDetailPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { RegisterPage } from "@/pages/RegisterPage";
@@ -19,6 +20,12 @@ function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route path="/orders" element={<OrdersPage />} />
+          {/*
+           * Written above /orders/:id to read in the order a visitor travels, not to win against
+           * it: the router ranks a static segment over a parameter, so this route takes "new"
+           * wherever it is declared.
+           */}
+          <Route path="/orders/new" element={<NewOrderPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
         </Route>
       </Route>
