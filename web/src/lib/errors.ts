@@ -1,14 +1,19 @@
 import { ApiError, NETWORK_ERROR_STATUS } from "@/api/client";
 
-const UNEXPECTED = "Não foi possível concluir a operação. Tente novamente.";
+const UNEXPECTED = "Algo deu errado. Tente novamente.";
 
 /**
  * The only refusal answered by status alone, because it is the only one that arrives without a
  * reply to quote.
+ *
+ * <p>It says what is missing and what the reader can do about it, and stops there. Whether the
+ * request died on this side or the other is not something the failure itself distinguishes, and
+ * asking whoever is reading to go and check on a server is asking for something they were never
+ * given the means to do.
  */
 const NO_REPLY: Record<number, string> = {
   [NETWORK_ERROR_STATUS]:
-    "Não foi possível falar com o servidor. Verifique se a API está no ar.",
+    "Sem resposta do servidor. Verifique sua conexão e tente novamente.",
 };
 
 export type StatusMessages = Record<number, string>;
