@@ -104,6 +104,11 @@ README em vez de codar.
   clientes simultâneos. Os parâmetros vão como propriedades do driver e
   não na URL, porque cada classe de teste sobrescreve a URL e perderia
   o que estivesse escrito nela.
+  `hibernate.column_ordering_strategy=legacy` também não é ajuste fino:
+  reordenando colunas, o Hibernate cria a coluna de identidade sem tipo
+  (`id`, e não `id integer`), o SQLite deixa passar NULL nela, e o pedido
+  volta sem itens porque o join lê identificador nulo como linha ausente.
+  Só afeta schema criado do zero — ou seja, toda execução de teste.
   REGRA DE ESCAPE: se o SQLiteDialect não subir o contexto da aplicação
   após duas abordagens distintas, PARE. Não tente uma terceira e não
   troque de banco por conta própria: me relate o que tentou, o erro exato
@@ -144,5 +149,5 @@ README em vez de codar.
 As features do escopo estão fechadas. O que resta é trabalho de qualidade
 sobre elas, e não escopo novo:
 - `web/` não tem runner de testes configurado.
-- Na API, a paginação em si não tem testes: o 400 da ordenação inválida
-  está coberto; tamanho de página, direção e limites de página não.
+- Na API, paginação, ordenação, CORS e o round-trip de criação de pedido
+  estão cobertos.
