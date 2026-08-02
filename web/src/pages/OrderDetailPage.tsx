@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useOrder } from "@/hooks/useOrder";
 import { describeError } from "@/lib/errors";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { centsOf, formatCents } from "@/lib/money";
 
 const NOT_FOUND = { 404: "Pedido não encontrado." };
 
@@ -166,8 +167,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Items({ order }: { order: OrderDetail }) {
-  const total = order.items.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
+  /* In cents, like the form that wrote the order: a float sum drifts, and Intl hides it until the
+   * list is long enough that it does not. The two screens now count money the same way. */
+  const totalCents = order.items.reduce(
+    (sum, item) => sum + centsOf(item.unitPrice) * item.quantity,
     0,
   );
 
@@ -211,7 +214,7 @@ function Items({ order }: { order: OrderDetail }) {
                   {formatCurrency(item.unitPrice)}
                 </td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">
-                  {formatCurrency(item.unitPrice * item.quantity)}
+                  {formatCents(centsOf(item.unitPrice) * item.quantity)}
                 </td>
               </tr>
             ))}
@@ -226,7 +229,7 @@ function Items({ order }: { order: OrderDetail }) {
                 Total
               </th>
               <td className="px-4 py-2 text-right font-mono font-medium tabular-nums">
-                {formatCurrency(total)}
+                {formatCents(totalCents)}
               </td>
             </tr>
           </tfoot>

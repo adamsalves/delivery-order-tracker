@@ -25,7 +25,7 @@ export function describeError(
 ): string {
   if (!(error instanceof ApiError)) return UNEXPECTED;
 
-  if (Object.keys(error.fieldErrors).length > 0) {
+  if (hasFieldErrors(error)) {
     return "Confira os campos destacados.";
   }
 
@@ -35,6 +35,15 @@ export function describeError(
     error.problem?.detail ??
     UNEXPECTED
   );
+}
+
+/**
+ * Whether the refusal is one the fields themselves are carrying. A screen that clears its
+ * highlights as they are corrected needs this to know when its own banner has run out of things to
+ * point at: "confira os campos destacados" outlives the last destaque otherwise.
+ */
+export function hasFieldErrors(error: unknown): boolean {
+  return error instanceof ApiError && Object.keys(error.fieldErrors).length > 0;
 }
 
 /** One field can break more than one rule, so the API sends a list and the first one is shown. */
