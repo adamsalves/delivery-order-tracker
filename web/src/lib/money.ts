@@ -89,6 +89,15 @@ function toDecimal(cents: number): string {
 }
 
 /**
+ * The cents of a price that arrived as a JSON number, which is how the API sends one back — a
+ * BigDecimal of scale two, so 45.90 is read as 45.9 and the rounding here recovers 4590 exactly.
+ * Multiplying and summing from that integer is what keeps a long list from drifting off by a cent.
+ */
+export function centsOf(amount: number): number {
+  return Math.round(amount * CENTS_PER_UNIT);
+}
+
+/**
  * The one place a float is allowed, and only because Intl is on the other side of it: the division
  * is undone by rounding to the two decimals the currency has.
  */
