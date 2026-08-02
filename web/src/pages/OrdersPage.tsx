@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, RotateCw } from "lucide-react";
 import type { OrderSummary } from "@/api/types";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import { StatusRail } from "@/components/StatusRail";
@@ -40,15 +40,38 @@ export function OrdersPage() {
           )}
         </div>
 
-        <Button asChild>
-          <Link to="/orders/new">
-            <Plus />
-            Novo pedido
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/*
+           * Paging by offset only ever moves down, so an order created after the first page was
+           * read sits above the window and no later page reaches it. Reading page zero again is
+           * the way back to it, and the count beside this says when that is worth doing.
+           *
+           * Not disabled while it works: pressing it again only bumps the attempt, and the effect
+           * that reads page zero aborts the read it replaces. Disabling it would take the focus off
+           * the control that was just pressed, and Chromium does not give it back.
+           */}
+          {page !== null && (
+            <Button variant="outline" onClick={reload}>
+              {phase === "loading" ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <RotateCw />
+              )}
+              Atualizar
+            </Button>
+          )}
+
+          <Button asChild>
+            <Link to="/orders/new">
+              <Plus />
+              Novo pedido
+            </Link>
+          </Button>
+        </div>
       </header>
 
-      {phase === "loading" && (
+      {/* A reload keeps the rows it already has on screen; only a first read has nothing to show. */}
+      {phase === "loading" && orders.length === 0 && (
         <p className="text-muted-foreground flex items-center gap-2 py-10 text-sm">
           <Loader2 className="size-4 animate-spin" />
           Carregando pedidos…
