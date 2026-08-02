@@ -12,7 +12,7 @@ import {
   type ItemDraft,
   type OrderFormErrors,
 } from "@/hooks/useOrderForm";
-import { describeError } from "@/lib/errors";
+import { describeError, hasFieldErrors } from "@/lib/errors";
 import { itemFieldId, type ItemField } from "@/lib/fieldIds";
 import { formatCents } from "@/lib/money";
 
@@ -105,6 +105,16 @@ export function NewOrderPage() {
     }
   }
 
+  /*
+   * A refusal carried by the fields is only worth stating while the fields are still carrying it.
+   * The highlights come off one by one as they are corrected, and this banner used to stay until
+   * the next submit, telling the reader to check destaques that were no longer on screen.
+   *
+   * Refusals with nothing under a field — a 500, a network that never answered — are the whole
+   * message, so they stay up regardless.
+   */
+  const stale = hasFieldErrors(failure) && !form.hasErrors;
+
   return (
     <div className="space-y-8">
       <Link
@@ -125,7 +135,7 @@ export function NewOrderPage() {
         </p>
       </header>
 
-      {failure !== null && (
+      {failure !== null && !stale && (
         <Alert variant="destructive">
           <AlertDescription>{describeError(failure)}</AlertDescription>
         </Alert>

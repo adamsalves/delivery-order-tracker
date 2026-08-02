@@ -57,6 +57,8 @@ export interface OrderForm {
   deliveryAddress: string;
   items: ItemDraft[];
   errors: OrderFormErrors;
+  /** Whether anything is still highlighted, which is what a banner about the fields outlives. */
+  hasErrors: boolean;
   totalCents: number;
   /** False on the last row: the API answers @NotEmpty, and an order with no items is not one. */
   canRemove: boolean;
@@ -229,6 +231,7 @@ export function useOrderForm(): OrderForm {
     deliveryAddress,
     items,
     errors,
+    hasErrors: broken(errors),
     totalCents,
     canRemove: items.length > 1,
     setCustomerName,
