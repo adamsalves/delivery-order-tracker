@@ -41,18 +41,28 @@ function writeStored(value: string | null): void {
   }
 }
 
-/** Every member is read off the parsed value, so every member is checked before one is claimed. */
-function isSession(value: unknown): value is Session {
-  if (typeof value !== "object" || value === null) return false;
+/**
+ * Built member by member rather than recognised in place: what comes back is whatever JSON.parse
+ * made of a storage key the visitor can edit, so the returned type is the result of the three
+ * checks and not a promise that they happened.
+ */
+function toSession(value: unknown): Session | null {
+  if (typeof value !== "object" || value === null) return null;
 
-  return (
-    "token" in value &&
-    typeof value.token === "string" &&
-    "email" in value &&
-    typeof value.email === "string" &&
-    "expiresAt" in value &&
-    typeof value.expiresAt === "number"
-  );
+  const found = new Map<string, unknown>(Object.entries(value));
+  const token = found.get("token");
+  const email = found.get("email");
+  const expiresAt = found.get("expiresAt");
+
+  if (
+    typeof token !== "string" ||
+    typeof email !== "string" ||
+    typeof expiresAt !== "number"
+  ) {
+    return null;
+  }
+
+  return { token, email, expiresAt };
 }
 
 function load(): Session | null {
@@ -60,9 +70,9 @@ function load(): Session | null {
   if (stored === null) return null;
 
   try {
-    const parsed: unknown = JSON.parse(stored);
-    if (!isSession(parsed) || parsed.expiresAt <= Date.now()) return null;
-    return parsed;
+    const session = toSession(JSON.parse(stored));
+
+    return session === null || session.expiresAt <= Date.now() ? null : session;
   } catch {
     return null;
   }
