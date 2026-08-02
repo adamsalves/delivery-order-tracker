@@ -11,8 +11,17 @@ const CURRENCY = new Intl.NumberFormat("pt-BR", {
 
 const ALTERNATIVES = new Intl.ListFormat("pt-BR", { type: "disjunction" });
 
+/** Stands in for a timestamp that could not be read, so the column keeps its width. */
+const ABSENT = "—";
+
+/**
+ * An unreadable timestamp is answered rather than thrown: Intl raises on an invalid date, and this
+ * runs inside a render with no boundary above it, so a single malformed row would blank the screen.
+ */
 export function formatDateTime(iso: string): string {
-  return DATE_TIME.format(new Date(iso));
+  const at = new Date(iso);
+
+  return Number.isNaN(at.getTime()) ? ABSENT : DATE_TIME.format(at);
 }
 
 /**
