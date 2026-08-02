@@ -309,8 +309,12 @@ function broken(errors: OrderFormErrors): boolean {
   );
 }
 
-/** Both of these answer the held object untouched when there is nothing to withdraw, so typing
- * into a field that was never refused does not re-render the form on every keystroke. */
+/**
+ * Both of these answer the held object untouched when there is nothing to withdraw, so the errors
+ * keep their identity across a keystroke that changed nothing about them. The render happens
+ * either way — the value being typed into is state of its own — so this buys no render, only a
+ * stable object for anything downstream that compares by reference.
+ */
 function withoutField(
   errors: OrderFormErrors,
   field: "customerName" | "deliveryAddress",
