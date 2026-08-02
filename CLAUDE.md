@@ -1,8 +1,12 @@
 # Delivery Order Tracker
 
 Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
+O README na raiz descreve como subir os dois lados e o contrato da API.
 
 ## Escopo FECHADO — não implemente nada além disto
+Tudo abaixo já está implementado. A descrição é do que existe, e serve para
+que uma mudança respeite as decisões que sustentam cada parte.
+
 - Auth: cadastro (nome, email, senha), login por email+senha, JWT.
   Apenas autenticados acessam a API.
 - Logout: revoga o token que autorizou a chamada. Como o JWT é
@@ -22,7 +26,8 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
   ENTREGUE ou CANCELADO; ENTREGUE e CANCELADO são terminais. Nenhum
   status se lista a si mesmo, então parar no lugar é recusado pela mesma
   tabela — não crie uma regra separada para isso. Transição inválida
-  devolve 409 nomeando o status atual, o pedido e as saídas abertas.
+  devolve 409 nomeando o status atual e as saídas abertas; o pedido é
+  identificado pelo `instance` do problem detail.
 - Histórico de status: cada transição grava uma linha
   (`OrderStatusHistory`) com origem, destino, horário e o e-mail do
   autor, lido do claim do JWT. A criação do pedido grava a primeira
@@ -52,7 +57,9 @@ Desafio técnico: sistema simplificado de rastreamento de pedidos de delivery.
   A listagem NÃO carrega itens nem histórico, pelo mesmo motivo de N+1:
   só o detalhe (`OrderDetailResponse`) leva as duas coleções.
 - Front React: lista de pedidos com status atual + criação de pedido,
-  e a timeline do histórico na tela de detalhe.
+  e a timeline do histórico na tela de detalhe. A listagem também
+  oferece um controle de ordenação, que não vai para a URL e não
+  inclui status entre as opções.
 
 ## Fora de escopo — NÃO implemente, mesmo se parecer útil
 Mapa, geolocalização, entregador/motoboy, roteirização, WebSocket,
@@ -68,21 +75,24 @@ README em vez de codar.
   (oauth2-resource-server com chave simétrica HS256), Spring Data JPA,
   Bean Validation, springdoc-openapi.
 
-  Starters já presentes em `api/pom.xml`, transcritos literalmente
-  (o Boot 4 renomeou vários em relação ao 3.x):
+  Dependências em `api/pom.xml`, transcritas literalmente (o Boot 4
+  renomeou vários starters em relação ao 3.x — confira aqui antes de
+  escrever um artifactId de memória):
   - `spring-boot-starter-webmvc` — e **não** `spring-boot-starter-web`
   - `spring-boot-starter-security`
+  - `spring-boot-starter-security-oauth2-resource-server` — e **não**
+    `spring-boot-starter-oauth2-resource-server`, que é o nome antigo
   - `spring-boot-starter-data-jpa`
   - `spring-boot-starter-validation`
+  - `org.springdoc:springdoc-openapi-starter-webmvc-ui`
+  - `org.hibernate.orm:hibernate-community-dialects`
+  - `org.xerial:sqlite-jdbc`, em escopo `runtime`
   - escopo `test`: `spring-boot-starter-webmvc-test`,
     `spring-boot-starter-security-test`, `spring-boot-starter-data-jpa-test`,
     `spring-boot-starter-validation-test` — o `spring-boot-starter-test`
     único do Boot 3 foi fatiado por módulo
 
-  Ainda **não** estão no pom, adicionar na fase que precisar deles:
-  `spring-boot-starter-oauth2-resource-server`, springdoc-openapi,
-  `org.xerial:sqlite-jdbc`, `org.hibernate.orm:hibernate-community-dialects`,
-  spotless-maven-plugin.
+  O build também traz o spotless-maven-plugin, com palantir-java-format.
 - Banco: SQLite via org.xerial:sqlite-jdbc +
   org.hibernate.orm:hibernate-community-dialects.
   Dialect: org.hibernate.community.dialect.SQLiteDialect. ddl-auto=update.
@@ -101,11 +111,15 @@ README em vez de codar.
   O enunciado permite "SQLite ou similar"; se a decisão for migrar, o
   alvo é H2 em modo arquivo (jdbc:h2:file:./data/app).
 - Web: Vite + React + TypeScript + react-router. Sem lib de estado global.
+  Tailwind CSS e shadcn/ui são autorizados e já estão em uso: os primitivos
+  ficam em `web/src/components/ui`. Não remova nem reescreva isso como se
+  fosse desvio.
 - Pacote base: dev.adamsalves.ordertracker
 
 ## Convenções
-- Código, nomes e mensagens de commit em inglês. Exceção: os valores do
-  enum de status, que são em português por exigência do enunciado.
+- Código, nomes e mensagens de commit em inglês. Exceções: os valores do
+  enum de status, que são em português por exigência do enunciado, e o
+  README, escrito para quem avalia o desafio.
 - Conventional Commits: feat, fix, chore, docs, test, refactor.
 - Commits ATÔMICOS. Uma unidade lógica por commit. Nunca agrupe uma
   feature inteira num commit só.
@@ -125,3 +139,10 @@ README em vez de codar.
   requisito do desafio.
 - Antes de cada commit, rode o formatador do lado correspondente:
   ./mvnw spotless:apply na API, npm run format no web.
+
+## Estado atual
+As features do escopo estão fechadas. O que resta é trabalho de qualidade
+sobre elas, e não escopo novo:
+- `web/` não tem runner de testes configurado.
+- Na API, a paginação em si não tem testes: o 400 da ordenação inválida
+  está coberto; tamanho de página, direção e limites de página não.
