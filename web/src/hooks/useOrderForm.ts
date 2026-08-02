@@ -75,10 +75,25 @@ function emptyItem(): ItemDraft {
 }
 
 export function useOrderForm(): OrderForm {
-  const [customerName, setCustomerName] = useState("");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [customerName, setWrittenName] = useState("");
+  const [deliveryAddress, setWrittenAddress] = useState("");
   const [items, setItems] = useState<ItemDraft[]>(() => [emptyItem()]);
   const [errors, setErrors] = useState<OrderFormErrors>({ byItem: {} });
+
+  /*
+   * Editing a field withdraws what was said about it, the same way editing a row does. A message
+   * describes the value that was refused, and the field no longer holds that value — leaving it up
+   * would mark a field as bad while the user looks at the correction they just typed into it.
+   */
+  const setCustomerName = useCallback((value: string) => {
+    setWrittenName(value);
+    setErrors((held) => withoutField(held, "customerName"));
+  }, []);
+
+  const setDeliveryAddress = useCallback((value: string) => {
+    setWrittenAddress(value);
+    setErrors((held) => withoutField(held, "deliveryAddress"));
+  }, []);
 
   const addItem = useCallback(() => {
     const item = emptyItem();
@@ -269,6 +284,17 @@ function broken(errors: OrderFormErrors): boolean {
     errors.items !== undefined ||
     Object.keys(errors.byItem).length > 0
   );
+}
+
+/** Both of these answer the held object untouched when there is nothing to withdraw, so typing
+ * into a field that was never refused does not re-render the form on every keystroke. */
+function withoutField(
+  errors: OrderFormErrors,
+  field: "customerName" | "deliveryAddress",
+): OrderFormErrors {
+  if (errors[field] === undefined) return errors;
+
+  return { ...errors, [field]: undefined };
 }
 
 function withoutItem(errors: OrderFormErrors, id: string): OrderFormErrors {
