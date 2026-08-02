@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { Loader2, Plus, RotateCw } from "lucide-react";
 import type { OrderSummary } from "@/api/types";
@@ -22,6 +23,21 @@ export function OrdersPage() {
     reload,
   } = useOrderList();
 
+  const countRef = useRef<HTMLParagraphElement>(null);
+  const wasLoadingMore = useRef(false);
+
+  /*
+   * The button that loaded the last page unmounts with it, and focus would fall back to the body.
+   * It moves to the count instead, which is both a stable target and the thing that just changed.
+   */
+  useEffect(() => {
+    if (wasLoadingMore.current && !loadingMore && !hasMore) {
+      countRef.current?.focus();
+    }
+
+    wasLoadingMore.current = loadingMore;
+  }, [loadingMore, hasMore]);
+
   return (
     <section className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -30,7 +46,12 @@ export function OrdersPage() {
             Pedidos
           </h1>
           {page !== null && (
-            <p className="text-muted-foreground text-sm">
+            <p
+              ref={countRef}
+              tabIndex={-1}
+              role="status"
+              className="text-muted-foreground text-sm focus-visible:outline-none"
+            >
               {page.totalElements === 1
                 ? "1 pedido"
                 : `${page.totalElements} pedidos`}
@@ -72,7 +93,10 @@ export function OrdersPage() {
 
       {/* A reload keeps the rows it already has on screen; only a first read has nothing to show. */}
       {phase === "loading" && orders.length === 0 && (
-        <p className="text-muted-foreground flex items-center gap-2 py-10 text-sm">
+        <p
+          role="status"
+          className="text-muted-foreground flex items-center gap-2 py-10 text-sm"
+        >
           <Loader2 className="size-4 animate-spin" />
           Carregando pedidos…
         </p>
@@ -117,7 +141,13 @@ export function OrdersPage() {
 
       {hasMore && (
         <div className="flex justify-center">
-          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+          {/* aria-disabled and not disabled: loadMore already ignores a repeat, and taking the
+              attribute route would drop the focus instead of only announcing the wait. */}
+          <Button
+            variant="outline"
+            onClick={loadMore}
+            aria-disabled={loadingMore}
+          >
             {loadingMore && <Loader2 className="animate-spin" />}
             {loadingMore ? "Carregando…" : "Carregar mais"}
           </Button>

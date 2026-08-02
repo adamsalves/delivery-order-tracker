@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useRef, type ReactNode, type RefObject } from "react";
 import { Link, useParams } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import type { OrderDetail } from "@/api/types";
@@ -32,10 +32,27 @@ export function OrderDetailPage() {
 
 function LoadedOrder({ id }: { id: number }) {
   const { order, phase, error, replace, reload } = useOrder(id);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  /*
+   * A transition always takes the button that was pressed with it — replaced by the one the new
+   * status opens, or removed entirely when the status is terminal — and focus would fall back to
+   * the body. It moves to the heading, which carries the badge that just changed.
+   */
+  const handleMoved = useCallback(
+    (updated: OrderDetail) => {
+      replace(updated);
+      headingRef.current?.focus();
+    },
+    [replace],
+  );
 
   if (phase === "loading") {
     return (
-      <p className="text-muted-foreground flex items-center gap-2 py-10 text-sm">
+      <p
+        role="status"
+        className="text-muted-foreground flex items-center gap-2 py-10 text-sm"
+      >
         <Loader2 className="size-4 animate-spin" />
         Carregando pedido…
       </p>
@@ -62,8 +79,8 @@ function LoadedOrder({ id }: { id: number }) {
   return (
     <div className="space-y-8">
       <BackLink />
-      <Header order={order} />
-      <OrderTransitions order={order} onMoved={replace} />
+      <Header order={order} headingRef={headingRef} />
+      <OrderTransitions order={order} onMoved={handleMoved} />
       <OrderStatusTimeline history={order.history} />
       <Items order={order} />
     </div>
@@ -96,11 +113,21 @@ function BackLink() {
   );
 }
 
-function Header({ order }: { order: OrderDetail }) {
+function Header({
+  order,
+  headingRef,
+}: {
+  order: OrderDetail;
+  headingRef: RefObject<HTMLHeadingElement | null>;
+}) {
   return (
     <header className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-3xl font-semibold font-stretch-110%">
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-display text-3xl font-semibold font-stretch-110% focus-visible:outline-none"
+        >
           Pedido{" "}
           <span className="font-mono tabular-nums font-stretch-normal">
             #{order.id}
