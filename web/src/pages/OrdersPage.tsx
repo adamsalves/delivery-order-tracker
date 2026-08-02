@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { Loader2, Plus, RotateCw } from "lucide-react";
-import type { OrderSummary } from "@/api/types";
+import type { OrderSummary, PageMetadata } from "@/api/types";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import { StatusRail } from "@/components/StatusRail";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useOrderList } from "@/hooks/useOrderList";
+import { useOrderList, type ListPhase } from "@/hooks/useOrderList";
 import { describeError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
 import { ORDER_SORT_IDS, ORDER_SORTS, isOrderSortId } from "@/lib/orderSort";
@@ -41,14 +41,18 @@ export function OrdersPage() {
   /*
    * The button that loaded the last page unmounts with it, and focus would fall back to the body.
    * It moves to the count instead, which is both a stable target and the thing that just changed.
+   *
+   * A change of order reaches the first three terms by another road — it empties the pagination,
+   * so nothing is left to load more of — and there the focus belongs to the control that was just
+   * used. The page tells the two apart: only an arriving last page leaves one behind.
    */
   useEffect(() => {
-    if (wasLoadingMore.current && !loadingMore && !hasMore) {
+    if (wasLoadingMore.current && !loadingMore && !hasMore && page !== null) {
       countRef.current?.focus();
     }
 
     wasLoadingMore.current = loadingMore;
-  }, [loadingMore, hasMore]);
+  }, [loadingMore, hasMore, page]);
 
   return (
     <section className="space-y-6">
@@ -57,20 +61,14 @@ export function OrdersPage() {
           <h1 className="font-display text-3xl font-semibold font-stretch-110%">
             Pedidos
           </h1>
-          {page !== null && (
-            <p
-              ref={countRef}
-              tabIndex={-1}
-              role="status"
-              className="text-muted-foreground text-sm focus-visible:outline-none"
-            >
-              {page.totalElements === 1
-                ? "1 pedido"
-                : `${page.totalElements} pedidos`}
-              {orders.length < page.totalElements &&
-                ` · ${orders.length} carregados`}
-            </p>
-          )}
+          <p
+            ref={countRef}
+            tabIndex={-1}
+            role="status"
+            className="text-muted-foreground text-sm focus-visible:outline-none"
+          >
+            {listSummary({ everLoaded, phase, page, loaded: orders.length })}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -82,8 +80,12 @@ export function OrdersPage() {
            * Not disabled while it works: pressing it again only bumps the attempt, and the effect
            * that reads page zero aborts the read it replaces. Disabling it would take the focus off
            * the control that was just pressed, and Chromium does not give it back.
+           *
+           * Held by everLoaded rather than by the pagination, which a change of order clears: this
+           * would otherwise leave the header for as long as that read takes and come back once it
+           * lands, moving everything under it twice over an order that was already chosen.
            */}
-          {page !== null && (
+          {everLoaded && (
             <Button variant="outline" onClick={reload}>
               {phase === "loading" ? (
                 <Loader2 className="animate-spin" />
@@ -133,10 +135,14 @@ export function OrdersPage() {
         </div>
       )}
 
-      {/* A reload keeps the rows it already has on screen; only a first read has nothing to show. */}
+      {/*
+       * A reload keeps the rows it already has on screen; only a first read has nothing to show.
+       * Hidden from the accessibility tree because the summary in the header is saying the same
+       * thing from a region that was already there to be heard.
+       */}
       {phase === "loading" && orders.length === 0 && (
         <p
-          role="status"
+          aria-hidden="true"
           className="text-muted-foreground flex items-center gap-2 py-10 text-sm"
         >
           <Loader2 className="size-4 animate-spin" />
@@ -197,6 +203,40 @@ export function OrdersPage() {
       )}
     </section>
   );
+}
+
+/**
+ * The one live region on the screen, which is why the paragraph holding it is mounted from the
+ * first render and only ever changes text. A region added to the DOM already carrying its words is
+ * not announced, so a count that arrives with the rows it counts says nothing — and a change of
+ * order, which empties the list and refills it, would pass in silence.
+ */
+function listSummary({
+  everLoaded,
+  phase,
+  page,
+  loaded,
+}: {
+  everLoaded: boolean;
+  phase: ListPhase;
+  page: PageMetadata | null;
+  loaded: number;
+}): string {
+  if (page !== null) {
+    const total =
+      page.totalElements === 1 ? "1 pedido" : `${page.totalElements} pedidos`;
+
+    return loaded < page.totalElements
+      ? `${total} · ${loaded} carregados`
+      : total;
+  }
+
+  /*
+   * Before the first page there is nothing here to say that the body is not already showing, and
+   * a failure is the alert's to report. Between the two, an empty pagination means the order
+   * changed and the read that follows it is the news.
+   */
+  return everLoaded && phase === "loading" ? "Carregando pedidos…" : "";
 }
 
 function OrderTicket({ order }: { order: OrderSummary }) {
