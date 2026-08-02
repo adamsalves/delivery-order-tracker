@@ -1,14 +1,7 @@
 import type * as React from "react";
 import type { OrderStatus } from "@/api/types";
+import { FORWARD_STATUSES } from "@/lib/orderStatus";
 import { cn } from "@/lib/utils";
-
-/** The one-way path. CANCELADO is missing on purpose: it leaves the rail, it is not a step on it. */
-const FORWARD: OrderStatus[] = [
-  "RECEBIDO",
-  "EM_PREPARO",
-  "SAIU_PARA_ENTREGA",
-  "ENTREGUE",
-];
 
 const FILL: Record<OrderStatus, string> = {
   RECEBIDO: "bg-status-recebido",
@@ -27,14 +20,14 @@ interface StatusRailProps extends React.ComponentProps<"div"> {
  * left unfilled and struck through, so the shape says the order stopped rather than finished.
  */
 export function StatusRail({ status, className, ...props }: StatusRailProps) {
-  const reached = FORWARD.indexOf(status);
+  const reached = FORWARD_STATUSES.indexOf(status);
 
   return (
     <div
       className={cn("relative flex items-center gap-1", className)}
       {...props}
     >
-      {FORWARD.map((step, index) => (
+      {FORWARD_STATUSES.map((step, index) => (
         <span
           key={step}
           className={cn(
