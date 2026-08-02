@@ -32,8 +32,17 @@ export function OrderItemFields({
 }: OrderItemFieldsProps) {
   const at = (field: keyof ItemErrors) => itemFieldId(item.id, field);
 
+  /*
+   * The row is named as a group, because the three labels inside it repeat identically down the
+   * list: without that a screen reader announces "Item, Qtd., Preço unit." over and over with
+   * nothing saying which line is being read. Only the remove button carried the position before.
+   */
   return (
-    <li className="border-border grid gap-3 border-b px-4 py-4 last:border-0 sm:grid-cols-[1fr_6rem_8rem_auto] sm:items-start">
+    <li
+      role="group"
+      aria-label={`Item ${position}`}
+      className="border-border grid gap-3 border-b px-4 py-4 last:border-0 sm:grid-cols-[1fr_6rem_8rem_auto] sm:items-start"
+    >
       <Field id={at("name")} label="Item" error={errors.name}>
         <Input
           id={at("name")}
