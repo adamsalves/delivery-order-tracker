@@ -56,10 +56,11 @@ SQLite em `api/data/app.db`. Não é preciso criar o diretório `data/` na mão:
 aplicação cria ele antes de abrir a primeira conexão, porque o driver do SQLite
 não conecta se o diretório do arquivo não existir.
 
-Para começar do zero em qualquer momento, pare a API e apague o arquivo:
+Para começar do zero em qualquer momento, pare a API e apague o arquivo — ainda
+de dentro de `api/`:
 
 ```bash
-rm -rf api/data
+rm -rf data
 ```
 
 ### 2. Web — `http://localhost:5173`
@@ -81,13 +82,16 @@ Abra `http://localhost:5173`.
 
 ### 3. Primeiro uso
 
-1. A raiz redireciona para `/login`. Clique em **Criar conta**.
-2. Cadastre-se com nome, e-mail e uma senha de **no mínimo 8 caracteres**.
+1. A raiz redireciona para `/login`. Clique em **Cadastre-se**.
+2. Cadastre-se com nome, e-mail e uma senha entre **8 caracteres** e **72
+   bytes** — o teto é do BCrypt, e conta bytes, então um acento pesa dois.
 3. Faça login. Você cai na listagem de pedidos, vazia.
 4. **Novo pedido** — preencha cliente, endereço e ao menos um item (nome,
    quantidade e preço unitário). O pedido nasce em `RECEBIDO`.
 5. Clique no pedido na listagem para abrir o detalhe: itens, total, timeline do
    histórico e os botões das transições que o status atual permite.
+6. De volta à listagem, **Ordenar por** troca a ordem e **Carregar mais** traz a
+   página seguinte, quando houver.
 
 O token fica no `localStorage` e vale 24h. **Sair** revoga ele no servidor — não
 é só um logout de cliente, o token deixa de ser aceito na hora.
@@ -115,7 +119,8 @@ os endpoints protegidos direto dali.
 | `GET` | `/api/orders/{id}` | sim | `200` com o pedido, seus itens e o histórico |
 | `PATCH` | `/api/orders/{id}/status` | sim | `200` com o pedido já no novo status |
 
-Qualquer outra rota exige `Authorization: Bearer <token>`.
+Fora as duas rotas de documentação acima, qualquer outra exige
+`Authorization: Bearer <token>`.
 
 ### Um passeio completo via curl
 
@@ -162,9 +167,12 @@ curl -sS -i -X POST http://localhost:8080/api/auth/logout \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-O `unitPrice` vai como **string** no JSON. Enviado como número, o valor passa
-por um double antes de virar `BigDecimal` e os centavos podem chegar torcidos;
-como string, `45.90` é lido exatamente como foi escrito.
+O `unitPrice` vai como **string** no JSON. A API aceita as duas formas e lê
+qualquer uma delas exatamente como veio — o Jackson liga o literal em
+`BigDecimal` pelo texto, sem passar por um double. Quem perde a escala é o
+cliente: um número em JavaScript **é** um double, e `JSON.stringify(45.90)`
+emite `45.9` antes de o JSON existir. Por isso o front guarda o preço em
+centavos inteiros e remonta o literal decimal na hora de enviar.
 
 ### Status e transições
 
@@ -200,6 +208,15 @@ A listagem é paginada. Sem parâmetros, ela devolve 20 pedidos ordenados por
 Ordenar só é aceito nas propriedades escalares que a listagem expõe: `id`,
 `customerName`, `deliveryAddress`, `status` e `createdAt`. Qualquer outra coisa
 devolve **400** dizendo quais são as aceitas.
+
+Um `sort` seu substitui o padrão por inteiro, **inclusive o `id` que desempata**.
+Sem repetir esse desempate, dois pedidos com o mesmo valor podem trocar de lugar
+entre requests e aparecer em duas páginas ou em nenhuma — então mande os dois,
+como o front faz:
+
+```
+?sort=customerName,asc&sort=id,asc
+```
 
 O corpo é um `PagedModel`, com o conteúdo em `content` e os metadados em `page`:
 
@@ -255,7 +272,7 @@ uma lista por campo, porque um mesmo campo pode quebrar mais de uma regra:
 
 | Status | Quando |
 | --- | --- |
-| `400` | corpo inválido, JSON ilegível, status inexistente, ordenação não suportada |
+| `400` | corpo inválido, JSON ilegível, status inexistente, ordenação não suportada, senha acima de 72 bytes |
 | `401` | token ausente, expirado ou revogado; e-mail ou senha errados no login |
 | `404` | pedido inexistente |
 | `409` | transição de status ilegal; e-mail já cadastrado |
@@ -271,9 +288,10 @@ cd api
 ./mvnw test
 ```
 
-Os testes não precisam do `.env`: eles usam um segredo fixo e um banco próprio em
-`api/target/test-data/app.db`, recriado a cada execução (`ddl-auto=create-drop`).
-O banco de desenvolvimento em `api/data/` não é tocado.
+Os testes não precisam do `.env`: eles usam um segredo fixo e bancos próprios em
+`api/target/test-data/`, recriados a cada execução (`ddl-auto=create-drop`). Cada
+classe que escreve aponta para um arquivo só seu, para que uma não veja as linhas
+da outra. O banco de desenvolvimento em `api/data/` não é tocado.
 
 O front ainda não tem suíte — está listado em [Próximos passos](#próximos-passos).
 
@@ -329,6 +347,11 @@ para preservar o header `WWW-Authenticate`.
 e o `Intl` esconde isso até a lista ficar longa o bastante para não esconder mais.
 As duas telas que mostram total contam da mesma forma.
 
+**O token fica no `localStorage`.** É exposição a XSS em troca de sobreviver a um
+refresh da página. A alternativa é um cookie `httpOnly`, e essa decisão é da API,
+não do front: significaria reinstaurar proteção contra CSRF e abrir mão do header
+`Authorization` que o resource server lê.
+
 ## Estrutura
 
 ```
@@ -337,7 +360,7 @@ api/                              Spring Boot
     auth/                         cadastro, login, logout e revogação de token
     config/                       segurança, JWT, tratamento de erros, OpenAPI
     order/                        pedido, itens, status, histórico
-    user/
+    user/                         o usuário cadastrado e seu repositório
   src/main/resources/
     application.properties
   src/test/java/                  testes de integração e de unidade
