@@ -1,4 +1,5 @@
 import { clearSession, getSession } from "@/auth/session";
+import { ShapeError, type Parser } from "./parse";
 import type { ProblemDetail } from "./types";
 
 const API_URL = (
@@ -41,12 +42,14 @@ interface RequestOptions {
 }
 
 /**
- * For the calls that answer with a representation. A body that is missing or unreadable is a
- * failure here, not an empty result: every caller of this asked for something back.
+ * For the calls that answer with a representation. A body that is missing, unreadable or not the
+ * shape that was asked for is a failure here, not an empty result: every caller of this asked for
+ * something back, and the parser is what makes the type it gets a fact rather than a claim.
  */
 export async function request<T>(
   path: string,
   options: RequestOptions,
+  parse: Parser<T>,
 ): Promise<T> {
   const response = await send(path, options);
   const payload = await readJson(response);
@@ -59,7 +62,23 @@ export async function request<T>(
     );
   }
 
-  return fromWire<T>(payload);
+  try {
+    return parse(payload, "response");
+  } catch (cause) {
+    /*
+     * A body that parsed as JSON but is not what the endpoint promises means the two sides have
+     * drifted apart. It fails here, naming the member, rather than downstream as an undefined that
+     * has already been rendered.
+     */
+    throw new ApiError(
+      response.status,
+      cause instanceof ShapeError
+        ? `Response to ${path} did not match: ${cause.message}`
+        : `Response to ${path} could not be read`,
+      null,
+      { cause },
+    );
+  }
 }
 
 /**
@@ -130,15 +149,6 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   }
 
   return response;
-}
-
-/**
- * The one place the wire is taken at its word. Nothing here proves the payload matches T — that
- * would need a schema per endpoint — so the step is named and kept to a single line, rather than
- * left as an assertion for each caller to repeat.
- */
-function fromWire<T>(payload: unknown): T {
-  return payload as T;
 }
 
 /**

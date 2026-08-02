@@ -1,25 +1,21 @@
 import { request, requestEmpty } from "./client";
-import type {
-  LoginRequest,
-  LoginResponse,
-  RegisterRequest,
-  RegisterResponse,
-} from "./types";
+import { loginResponse, registerResponse } from "./parse";
+import type { LoginRequest, RegisterRequest } from "./types";
 
 export function register(body: RegisterRequest) {
-  return request<RegisterResponse>("/api/auth/register", {
-    method: "POST",
-    body,
-    auth: false,
-  });
+  return request(
+    "/api/auth/register",
+    { method: "POST", body, auth: false },
+    registerResponse,
+  );
 }
 
 export function login(body: LoginRequest) {
-  return request<LoginResponse>("/api/auth/login", {
-    method: "POST",
-    body,
-    auth: false,
-  });
+  return request(
+    "/api/auth/login",
+    { method: "POST", body, auth: false },
+    loginResponse,
+  );
 }
 
 /** Revokes the token that authorises the call, so it carries no body of its own. */
