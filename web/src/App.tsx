@@ -21,8 +21,9 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/orders" element={<OrdersPage />} />
           {/*
-           * Ahead of /orders/:id, which would otherwise match "new" as an id and send the
-           * literal word to an endpoint that only reads numbers.
+           * Written above /orders/:id to read in the order a visitor travels, not to win against
+           * it: the router ranks a static segment over a parameter, so this route takes "new"
+           * wherever it is declared.
            */}
           <Route path="/orders/new" element={<NewOrderPage />} />
           <Route path="/orders/:id" element={<OrderDetailPage />} />
