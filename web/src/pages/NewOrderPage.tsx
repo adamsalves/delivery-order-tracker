@@ -1,16 +1,22 @@
-import { useRef, type FormEvent } from "react";
-import { Link } from "react-router";
-import { ArrowLeft, Plus } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router";
+import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { createOrder } from "@/api/orders";
 import { OrderItemFields } from "@/components/OrderItemFields";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrderForm } from "@/hooks/useOrderForm";
+import { describeError } from "@/lib/errors";
 import { formatCents } from "@/lib/money";
 
 export function NewOrderPage() {
   const form = useOrderForm();
+  const navigate = useNavigate();
   const addRef = useRef<HTMLButtonElement>(null);
+  const [failure, setFailure] = useState<unknown>(null);
+  const [pending, setPending] = useState(false);
 
   /*
    * A row added or removed takes the control that was pressed with it, or arrives with nothing
@@ -31,9 +37,34 @@ export function NewOrderPage() {
     addRef.current?.focus();
   }
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    form.validate();
+    setFailure(null);
+
+    const body = form.validate();
+    if (body === null) return;
+
+    setPending(true);
+    try {
+      const created = await createOrder(body);
+
+      /*
+       * Replaced rather than pushed: the form has been spent, and going back to it would offer a
+       * filled-in copy of an order that already exists. Back goes to the listing, which now has it.
+       */
+      void navigate(`/orders/${created.id}`, { replace: true });
+    } catch (error) {
+      setFailure(error);
+
+      /*
+       * The server checks the same rules the form does, so a refusal here is either a rule the
+       * client does not know or a body it built wrong. Either way it is said under the field it
+       * belongs to, and the alert above only says to look there.
+       */
+      form.applyServerErrors(error);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -56,6 +87,12 @@ export function NewOrderPage() {
         </p>
       </header>
 
+      {failure !== null && (
+        <Alert variant="destructive">
+          <AlertDescription>{describeError(failure)}</AlertDescription>
+        </Alert>
+      )}
+
       <form onSubmit={handleSubmit} noValidate className="space-y-8">
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
@@ -63,6 +100,7 @@ export function NewOrderPage() {
             <Input
               id="customerName"
               value={form.customerName}
+              disabled={pending}
               onChange={(event) => form.setCustomerName(event.target.value)}
               aria-invalid={form.errors.customerName !== undefined}
               aria-describedby={
@@ -81,6 +119,7 @@ export function NewOrderPage() {
             <Input
               id="deliveryAddress"
               value={form.deliveryAddress}
+              disabled={pending}
               onChange={(event) => form.setDeliveryAddress(event.target.value)}
               aria-invalid={form.errors.deliveryAddress !== undefined}
               aria-describedby={
@@ -113,7 +152,7 @@ export function NewOrderPage() {
                   item={item}
                   position={index + 1}
                   errors={form.errors.byItem[item.id] ?? {}}
-                  disabled={false}
+                  disabled={pending}
                   removable={form.canRemove}
                   onChange={(patch) => form.updateItem(item.id, patch)}
                   onRemove={() => handleRemove(item.id)}
@@ -127,6 +166,7 @@ export function NewOrderPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={pending}
                 onClick={handleAdd}
               >
                 <Plus />
@@ -144,8 +184,12 @@ export function NewOrderPage() {
           </div>
         </section>
 
+        {/* Disabled while the request is in flight, so a second press cannot place a second order. */}
         <div className="flex items-center gap-3">
-          <Button type="submit">Criar pedido</Button>
+          <Button type="submit" disabled={pending}>
+            {pending && <Loader2 className="animate-spin" />}
+            {pending ? "Criando pedido…" : "Criar pedido"}
+          </Button>
           <Button variant="ghost" asChild>
             <Link to="/orders">Cancelar</Link>
           </Button>
