@@ -60,7 +60,13 @@ export const ORDER_SORTS: Record<OrderSortId, OrderSort> = {
  */
 export const DEFAULT_ORDER_SORT: OrderSortId = "newest";
 
-/** The listbox hands its value back as a plain string; this is where it becomes one of ours. */
+/**
+ * The listbox hands its value back as a plain string; this is where it becomes one of ours.
+ *
+ * <p>Own keys only. `in` reads through the prototype, so it would answer for `toString` and
+ * `constructor` too, and the lookup that followed would hand back a function to destructure a
+ * property and a direction out of.
+ */
 export function isOrderSortId(value: string): value is OrderSortId {
-  return value in ORDER_SORTS;
+  return Object.hasOwn(ORDER_SORTS, value);
 }
