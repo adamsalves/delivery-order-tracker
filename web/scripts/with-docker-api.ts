@@ -50,9 +50,9 @@ const env = {
   E2E_API: "docker",
 };
 
-function run(command: string, args: string[], shell = false): Promise<number> {
+function run(command: string, args: string[]): Promise<number> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: "inherit", env, shell });
+    const child = spawn(command, args, { stdio: "inherit", env });
     child.on("error", reject);
     child.on("close", (code) => resolve(code ?? 1));
   });
@@ -62,17 +62,33 @@ function run(command: string, args: string[], shell = false): Promise<number> {
  * The plugin where it exists, the standalone script it replaced otherwise; both run this file the
  * same. -f is not about that difference — compose.e2e.yaml is not a name either of them would look
  * for on its own, which is exactly what keeps it out of a bare `docker compose up`.
+ *
+ * Neither being present is answered here rather than left to the first spawn, because the audience
+ * for this script is people who do not have the JDK: telling them "spawn docker-compose ENOENT",
+ * naming a tool they never asked for, is the wrong way to say that Docker is missing.
  */
-function composeBase(): [string, string[]] {
-  const v2 = spawnSync("docker", ["compose", "version"], { stdio: "ignore" });
-  const prefix: [string, string[]] =
-    v2.status === 0 ? ["docker", ["compose"]] : ["docker-compose", []];
+function detectCompose(): [string, string[]] {
+  const has = (command: string, args: string[]) =>
+    spawnSync(command, args, { stdio: "ignore" }).status === 0;
+
+  const prefix: [string, string[]] | undefined = has("docker", [
+    "compose",
+    "version",
+  ])
+    ? ["docker", ["compose"]]
+    : has("docker-compose", ["--version"])
+      ? ["docker-compose", []]
+      : undefined;
+
+  if (!prefix) {
+    throw new Error(
+      "Docker Compose was not found: neither `docker compose` nor `docker-compose` is on PATH. " +
+        "Install Docker, or run the suite with `npm run test:e2e:native`, which needs the JDK instead.",
+    );
+  }
 
   return [prefix[0], [...prefix[1], "-f", COMPOSE_FILE, "-p", PROJECT]];
 }
-
-const [docker, base] = composeBase();
-const compose = (...args: string[]) => run(docker, [...base, ...args]);
 
 async function waitForApi(): Promise<void> {
   const deadline = Date.now() + READY_TIMEOUT_MS;
@@ -115,8 +131,13 @@ process.on("SIGINT", () => {
  * Nothing in here calls process.exit: it would skip the teardown below and leave the container, its
  * network and its volume behind. Every path sets a code and lets the finally run first.
  */
+let compose: ((...args: string[]) => Promise<number>) | undefined;
 let code = 1;
+
 try {
+  const [docker, base] = detectCompose();
+  compose = (...args: string[]) => run(docker, [...base, ...args]);
+
   /* --build because --force-recreate recreates the container and not the image: without it compose
    * only builds when the image is missing, so from the second run onwards the suite would test the
    * jar from the run before and pass green over whatever just changed in api/src.
@@ -133,11 +154,13 @@ try {
   if (started === 0) {
     await waitForApi();
 
-    code = await run(
-      "npx",
-      ["playwright", "test", ...process.argv.slice(2)],
-      process.platform === "win32",
-    );
+    /* npx.cmd rather than spawning through a shell on Windows: with a shell, Node joins the
+     * arguments with spaces and quotes none of them, so `-- --grep "two words"` arrives split. */
+    code = await run(process.platform === "win32" ? "npx.cmd" : "npx", [
+      "playwright",
+      "test",
+      ...process.argv.slice(2),
+    ]);
   } else {
     code = started;
   }
@@ -147,9 +170,21 @@ try {
   /* The container is detached, so nothing of its output has been printed, and the teardown below is
    * about to remove it along with its log. An API that came up and died — a secret under 32 bytes
    * is enough — otherwise reports as three minutes of silence and no reason anywhere. */
-  await compose("logs", "--no-color", SERVICE);
+  await compose?.("logs", "--no-color", SERVICE).catch(() => {});
 } finally {
-  await compose("down", "-v");
+  /* Awaited without a guard this could reject — the daemon going away mid-run is enough — and a
+   * rejection escaping a finally at the top level of a module skips the exit below entirely, so the
+   * run ends on a stack trace and an accidental code. A teardown that fails also has to be able to
+   * fail the run: the README promises nothing is left over, and a green suite exiting 0 beside a
+   * container still up is that promise broken where nobody looks. */
+  const tornDown = compose
+    ? await compose("down", "-v").catch((error: unknown) => {
+        console.error(error instanceof Error ? error.message : error);
+        return 1;
+      })
+    : 0;
+
+  if (code === 0 && tornDown !== 0) code = tornDown;
 }
 
 process.exit(code);
