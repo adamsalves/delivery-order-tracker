@@ -1,0 +1,30 @@
+services:
+  api:
+    build: ./api
+    # The port the README already documents, so the web side needs no change: this is an alternative
+    # to `./mvnw spring-boot:run`, not a second address to configure. For the same reason nothing
+    # here sets app.cors.allowed-origins — the front runs on the host either way, still on 5173.
+    ports:
+      - "8080:8080"
+    # The same api/.env the host path reads. An environment variable outranks the config data pulled
+    # in by spring.config.import, so the secret lives in one place rather than two, and /app/.env not
+    # existing inside the image costs nothing because that import is optional.
+    env_file: ./api/.env
+    volumes:
+      # A named volume, not a bind mount. The database rests on WAL, busy_timeout and file locking,
+      # and the bind mounts Docker Desktop puts under a Mac or Windows host (virtiofs, gRPC-FUSE) are
+      # the documented place where SQLite locking misbehaves. The price is that starting over is
+      # `docker compose down -v` instead of removing api/data.
+      - api-data:/app/data
+    healthcheck:
+      # Cosmetic — nothing here waits on it, it only lets `docker compose ps` say when the API is up.
+      # Boot binds the port once the context is ready, so an open port answers the question. /dev/tcp
+      # belongs to bash, and CMD-SHELL would run this under the image's sh.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  api-data:
