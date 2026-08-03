@@ -146,15 +146,32 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      * /api/auth one of those is the password. The request id in the pattern is what ties the line to
      * the response the caller was given.
      *
+     * <p>A 5xx is not a refusal at all but a fault of ours that the base class happened to give a
+     * body to, and one sentence naming a class is the least useful record of the status that most
+     * needs one. Those get the trace, and with it the message — which is safe in a way it is not at
+     * 4xx, because nothing here echoes the request: the framework raises these when it cannot write
+     * a response or cannot bind a variable the code declared, not when the caller sent something
+     * wrong. Method validation would be the exception to that, and there is no {@code @Validated} in
+     * this application to raise it; the request body is validated with {@code @Valid}, which answers
+     * 400 through the override above.
+     *
+     * <p>Who called is left out of the line, and the {@code false} is that decision rather than a
+     * default: the address is personal data, and a log kept for counting refusals would start
+     * carrying it for as long as the log is kept. What is given up is telling one caller's rate from
+     * the sum of everyone's.
+     *
      * <p>Failures nobody handled are not logged here, because they never reach here. Those are the
      * filter's, at ERROR and with the stack trace.
      */
     private void logRefusal(HttpStatusCode status, Exception ex, WebRequest request) {
-        log.warn(
-                "Answered {} with {} ({})",
-                request.getDescription(false),
-                status,
-                ex.getClass().getSimpleName());
+        String route = request.getDescription(false);
+        String name = ex.getClass().getSimpleName();
+
+        if (status.is5xxServerError()) {
+            log.error("Answered {} with {} ({})", route, status, name, ex);
+        } else {
+            log.warn("Answered {} with {} ({})", route, status, name);
+        }
     }
 
     private String describe(HttpMessageNotReadableException ex) {

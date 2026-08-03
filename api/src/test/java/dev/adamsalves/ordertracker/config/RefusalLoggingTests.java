@@ -16,12 +16,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -133,5 +137,45 @@ class RefusalLoggingTests {
         assertThat(logs.from(ProblemDetailAuthenticationHandler.class, Level.WARN))
                 .hasSize(1);
         assertThat(logs.all()).noneMatch(line -> line.contains(token) || line.contains("Bearer "));
+    }
+
+    /**
+     * The base class gives a body to some of our own faults too, and those arrive here looking like
+     * refusals. They are the status least worth summarising in one sentence: nobody can act on
+     * "answered 500 (MissingPathVariableException)" without the trace that says where.
+     */
+    @Test
+    void logsAFaultOfItsOwnAtErrorWithTheTrace() throws Exception {
+        String token = api.registerAndLogin(EMAIL);
+
+        mockMvc.perform(get("/api/misdeclared/7").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isInternalServerError());
+
+        List<String> faults = logs.from(ApiExceptionHandler.class, Level.ERROR);
+
+        assertThat(logs.from(ApiExceptionHandler.class, Level.WARN)).isEmpty();
+        assertThat(faults).hasSize(1);
+        assertThat(faults.getFirst())
+                .contains("500")
+                .contains("MissingPathVariableException")
+                .contains("\tat ");
+    }
+
+    /**
+     * Declared wrong on purpose: the name in the mapping and the name the parameter asks for do not
+     * match, which is a fault of the code rather than of the call, and the framework answers 500 for
+     * it through the advice rather than letting it reach the filter.
+     */
+    @TestConfiguration
+    static class EndpointDeclaredWrong {
+
+        @RestController
+        static class MisdeclaredPathVariable {
+
+            @GetMapping("/api/misdeclared/{id}")
+            String read(@PathVariable("absent") String absent) {
+                return absent;
+            }
+        }
     }
 }
