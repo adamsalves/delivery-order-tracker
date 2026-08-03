@@ -237,6 +237,35 @@ O corpo é um `PagedModel`, com o conteúdo em `content` e os metadados em `page
 
 A listagem não carrega itens nem histórico — só o detalhe leva as duas coleções.
 
+### Limites de entrada
+
+Todo campo de texto para na largura da coluna que o guarda, e a lista de itens
+tem chão e teto. O que passar disso volta **400** com o campo nomeado em
+`errors`, e nada é gravado.
+
+| Campo | Limite |
+| --- | --- |
+| `name`, `email` (cadastro) | 255 caracteres |
+| `password` | de 8 caracteres a 72 bytes |
+| `customerName`, `deliveryAddress` | 255 caracteres |
+| `items` | de 1 a 100 itens |
+| `items[].name` | 255 caracteres |
+| `items[].quantity` | inteiro positivo |
+| `items[].unitPrice` | positivo, até 10 inteiros e 2 decimais |
+
+O 255 não é um número escolhido: é a largura que um `@Column` sem `length`
+declara. O SQLite não a aplica, então até aqui um nome de 5000 caracteres era
+aceito e gravado — as anotações são o que de fato o recusa.
+
+O teto da senha é do BCrypt e conta **bytes**, então um acento pesa dois: 72
+caracteres acentuados são 144 bytes e não passam. Esse é o único limite checado
+fora de uma anotação — `@Size` conta caracteres, e quem responde pelo que o
+encoder aceita é o `AuthService`. Onde ele é checado não muda como ele é
+respondido: a recusa sai nomeando `password` em `errors`, como todas as outras.
+
+O front repete os mesmos limites antes de enviar — inclusive o de 100 itens, que
+para de oferecer a adição de linhas quando chega lá, dizendo por quê.
+
 ### Erros
 
 Toda falha sai como `ProblemDetail` (RFC 9457), inclusive as recusadas na cadeia
@@ -272,7 +301,7 @@ uma lista por campo, porque um mesmo campo pode quebrar mais de uma regra:
 
 | Status | Quando |
 | --- | --- |
-| `400` | corpo inválido, JSON ilegível, status inexistente, ordenação não suportada, senha acima de 72 bytes |
+| `400` | corpo inválido, JSON ilegível, status inexistente, ordenação não suportada, campo fora dos [limites](#limites-de-entrada) |
 | `401` | token ausente, expirado ou revogado; e-mail ou senha errados no login |
 | `404` | pedido inexistente |
 | `409` | transição de status ilegal; e-mail já cadastrado |
@@ -449,6 +478,9 @@ Fora do escopo do desafio, na ordem em que fariam mais diferença:
   Testing Library cobriria o parser de resposta, a máquina de transições da tela
   de detalhe e o formulário de criação.
 - **Filtro por status na listagem.** O caminho natural depois da ordenação.
+- **Teto no tamanho do corpo.** O limite de 100 itens recusa depois que o Jackson
+  já montou a lista: corta o que é gravado e o que é respondido, não o que é
+  lido. Um teto em bytes é configuração de contêiner, não anotação de campo.
 - **Refresh token.** Hoje a sessão dura 24h e acaba de uma vez; um refresh
   encurtaria o token de acesso sem obrigar um novo login.
 - **Papéis e permissões.** Todo usuário autenticado pode fazer tudo. Separar quem

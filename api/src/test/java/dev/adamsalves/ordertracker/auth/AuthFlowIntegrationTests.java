@@ -157,6 +157,75 @@ class AuthFlowIntegrationTests {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * The message is the whole point of the annotation carrying a ceiling. Left open, Bean
+     * Validation builds it from both ends of the range and the end nobody wrote is Integer.MAX_VALUE
+     * — so the caller reading the API without the front end in front of them was told the password
+     * had to be "between 8 and 2147483647". Naming the max is what fixes it; the sentence itself is
+     * still the stock one, and pinning it here is what would notice the number going back.
+     */
+    @Test
+    void namesThePasswordBoundsInAMessageAPersonCanRead() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("Adams Alves", EMAIL, "short")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password[0]").value("size must be between 8 and 72"));
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * The column behind the name is 255 characters wide and SQLite enforces none of the width it was
+     * declared with, so the annotation is the only thing standing between a name of any size and the
+     * table. A refusal that still wrote the row would be the worse half of both answers.
+     */
+    @Test
+    void refusesANameLongerThanTheColumnBehindIt() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("a".repeat(256), EMAIL, PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name").isArray());
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * The far side of the same bound. A ceiling written with the wrong comparison refuses the width
+     * it was meant to allow, and nothing above would notice: 256 comes back 400 either way.
+     */
+    @Test
+    void takesANameSittingExactlyOnTheColumnWidth() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("a".repeat(255), EMAIL, PASSWORD)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("a".repeat(255)));
+
+        assertThat(userRepository.count()).isOne();
+    }
+
+    /**
+     * Long by the only measure this is about. @Email holds the local part to 64 characters of its
+     * own accord, so an address made long by that half is refused whether or not the length bound
+     * exists — the case would stay green with @Size taken off the field, and prove nothing about
+     * it. The length is spent on labels instead, and the message is read rather than merely
+     * counted, so the two constraints cannot quietly change places.
+     */
+    @Test
+    void refusesAnAddressLongerThanTheColumnBehindIt() throws Exception {
+        String address = "a".repeat(60) + "@" + "sub.".repeat(48) + "example.com";
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("Adams Alves", address, PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.email[0]").value("size must be between 0 and 255"));
+
+        assertThat(userRepository.count()).isZero();
+    }
+
     private void register(String email, String password) throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)

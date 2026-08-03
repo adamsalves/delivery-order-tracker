@@ -6,12 +6,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  MAX_PASSWORD_BYTES,
+  MAX_TEXT_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  tooLong,
+} from "@/lib/bounds";
 import { describeError, fieldErrorOf } from "@/lib/errors";
-
-const MIN_PASSWORD_LENGTH = 8;
-
-/** BCrypt's own ceiling, which the API enforces. Counted in bytes, so an accent costs two. */
-const MAX_PASSWORD_BYTES = 72;
 
 /** Register is the only call that can conflict, so a 409 here is never a status transition. */
 const EMAIL_TAKEN = { 409: "Este e-mail já está cadastrado." };
@@ -22,13 +23,20 @@ interface FieldErrors {
   password?: string;
 }
 
+/**
+ * The lengths are counted on the value as typed, because that is the value the server measures: it
+ * trims the address only once validation has already run, and never trims the name at all. The
+ * order form counts its own trimmed, for the same reason read the other way round.
+ */
 function validate(name: string, email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
 
   if (name.trim() === "") errors.name = "Informe seu nome.";
+  else if (name.length > MAX_TEXT_LENGTH) errors.name = tooLong();
 
   if (email.trim() === "") errors.email = "Informe seu e-mail.";
   else if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = "E-mail inválido.";
+  else if (email.length > MAX_TEXT_LENGTH) errors.email = tooLong();
 
   if (password === "") errors.password = "Informe uma senha.";
   else if (password.length < MIN_PASSWORD_LENGTH) {

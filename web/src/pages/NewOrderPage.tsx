@@ -12,9 +12,13 @@ import {
   type ItemDraft,
   type OrderFormErrors,
 } from "@/hooks/useOrderForm";
+import { MAX_ITEMS } from "@/lib/bounds";
 import { describeError, hasFieldErrors } from "@/lib/errors";
 import { itemFieldId, type ItemField } from "@/lib/fieldIds";
 import { formatCents } from "@/lib/money";
+
+/** What the add button points at once it stops offering rows, so the reason is read with it. */
+const ITEMS_CEILING_ID = "items-ceiling";
 
 export function NewOrderPage() {
   const form = useOrderForm();
@@ -46,6 +50,7 @@ export function NewOrderPage() {
    */
   function handleAdd() {
     const id = form.addItem();
+    if (id === undefined) return;
 
     requestAnimationFrame(() => {
       document.getElementById(itemFieldId(id, "name"))?.focus();
@@ -215,17 +220,45 @@ export function NewOrderPage() {
             </ul>
 
             <div className="border-border flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-              <Button
-                ref={addRef}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={handleAdd}
-              >
-                <Plus />
-                Adicionar item
-              </Button>
+              {/*
+               * At the ceiling the button says why it stopped, next to itself. Stopping with
+               * nothing beside it would read as the form having broken, and the number it stopped
+               * at is the one the API would have answered with anyway.
+               *
+               * aria-disabled rather than disabled, because a disabled button is out of the tab
+               * order and out of reach: whoever navigates by keyboard or reads by screen reader
+               * would never land on the control and never hear the sentence explaining it. It also
+               * keeps the button focusable, which is what handleRemove depends on — a row removed
+               * at the ceiling focuses it back, and that runs before the render that would have
+               * re-enabled it, so a disabled one would have dropped focus to the body.
+               *
+               * Pressing it anyway is a no-op the hook already guards, and answers undefined.
+               */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  ref={addRef}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  aria-disabled={!form.canAdd}
+                  aria-describedby={form.canAdd ? undefined : ITEMS_CEILING_ID}
+                  onClick={handleAdd}
+                  className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+                >
+                  <Plus />
+                  Adicionar item
+                </Button>
+
+                {!form.canAdd && (
+                  <p
+                    id={ITEMS_CEILING_ID}
+                    className="text-muted-foreground text-sm"
+                  >
+                    Um pedido leva no máximo {MAX_ITEMS} itens.
+                  </p>
+                )}
+              </div>
 
               {/* A convenience, and only that: the server prices the order from the items it gets. */}
               <p className="text-sm">
