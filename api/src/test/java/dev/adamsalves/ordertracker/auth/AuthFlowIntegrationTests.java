@@ -189,13 +189,22 @@ class AuthFlowIntegrationTests {
         assertThat(userRepository.count()).isZero();
     }
 
+    /**
+     * Long by the only measure this is about. @Email holds the local part to 64 characters of its
+     * own accord, so an address made long by that half is refused whether or not the length bound
+     * exists — the case would stay green with @Size taken off the field, and prove nothing about
+     * it. The length is spent on labels instead, and the message is read rather than merely
+     * counted, so the two constraints cannot quietly change places.
+     */
     @Test
     void refusesAnAddressLongerThanTheColumnBehindIt() throws Exception {
+        String address = "a".repeat(60) + "@" + "sub.".repeat(48) + "example.com";
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(registration("Adams Alves", "a".repeat(244) + "@example.com", PASSWORD)))
+                        .content(registration("Adams Alves", address, PASSWORD)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.email").isArray());
+                .andExpect(jsonPath("$.errors.email[0]").value("size must be between 0 and 255"));
 
         assertThat(userRepository.count()).isZero();
     }
