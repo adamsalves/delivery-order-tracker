@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  MAX_ITEMS,
   useOrderForm,
   type ItemDraft,
   type OrderFormErrors,
 } from "@/hooks/useOrderForm";
+import { MAX_ITEMS } from "@/lib/bounds";
 import { describeError, hasFieldErrors } from "@/lib/errors";
 import { itemFieldId, type ItemField } from "@/lib/fieldIds";
 import { formatCents } from "@/lib/money";

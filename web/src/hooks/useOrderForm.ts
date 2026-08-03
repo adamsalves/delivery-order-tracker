@@ -1,13 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import type { CreateOrderItemRequest, CreateOrderRequest } from "@/api/types";
+import { MAX_ITEMS, MAX_TEXT_LENGTH, tooLong } from "@/lib/bounds";
 import { fieldErrorOf } from "@/lib/errors";
 import { readAmount, type AmountProblem } from "@/lib/money";
-
-/** Mirrors @Size(max = 255) on the three text fields of the create request. */
-const MAX_TEXT_LENGTH = 255;
-
-/** Mirrors @Size(max = 100) on the items list. */
-export const MAX_ITEMS = 100;
 
 /** The column is an int and the constraint is @Positive, so the ceiling is Java's own. */
 const MAX_QUANTITY = 2_147_483_647;
@@ -278,13 +273,16 @@ export function useOrderForm(): OrderForm {
   };
 }
 
+/**
+ * Measured on the trimmed value because that is the value the server is sent: validate() trims
+ * before building the body. The register form measures its own fields untrimmed, for the same
+ * reason read the other way round.
+ */
 function checkText(value: string, missing: string): string | undefined {
   const written = value.trim();
 
   if (written === "") return missing;
-  if (written.length > MAX_TEXT_LENGTH) {
-    return `No máximo ${MAX_TEXT_LENGTH} caracteres.`;
-  }
+  if (written.length > MAX_TEXT_LENGTH) return tooLong();
 
   return undefined;
 }

@@ -6,19 +6,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  MAX_PASSWORD_BYTES,
+  MAX_TEXT_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  tooLong,
+} from "@/lib/bounds";
 import { describeError, fieldErrorOf } from "@/lib/errors";
-
-const MIN_PASSWORD_LENGTH = 8;
-
-/**
- * Mirrors @Size(max = 255) on the register request, itself the width of the column behind each
- * field. Counted on the value as typed, because that is the value the server measures: it trims the
- * address only once validation has already run, and never trims the name at all.
- */
-const MAX_TEXT_LENGTH = 255;
-
-/** BCrypt's own ceiling, which the API enforces. Counted in bytes, so an accent costs two. */
-const MAX_PASSWORD_BYTES = 72;
 
 /** Register is the only call that can conflict, so a 409 here is never a status transition. */
 const EMAIL_TAKEN = { 409: "Este e-mail já está cadastrado." };
@@ -29,6 +23,11 @@ interface FieldErrors {
   password?: string;
 }
 
+/**
+ * The lengths are counted on the value as typed, because that is the value the server measures: it
+ * trims the address only once validation has already run, and never trims the name at all. The
+ * order form counts its own trimmed, for the same reason read the other way round.
+ */
 function validate(name: string, email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -47,11 +46,6 @@ function validate(name: string, email: string, password: string): FieldErrors {
   }
 
   return errors;
-}
-
-/** The same sentence the order form uses for the same ceiling, so the two screens agree. */
-function tooLong(): string {
-  return `No máximo ${MAX_TEXT_LENGTH} caracteres.`;
 }
 
 export function RegisterPage() {
