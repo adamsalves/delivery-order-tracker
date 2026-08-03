@@ -13,15 +13,27 @@ desse caminho fica registrado num histórico com autor e horário.
 
 ## Pré-requisitos
 
-| Ferramenta | Versão | Como conferir |
-| --- | --- | --- |
-| JDK | 21 | `java -version` |
-| Node.js | 24 (fixado em `web/.nvmrc`) | `node --version` |
-| openssl | qualquer | `openssl version` |
+A API sobe em container por padrão, e o que você precisa instalar depende disso.
+O front roda sempre na máquina, então Node é o único item obrigatório dos dois
+lados.
+
+| Ferramenta | Versão | Como conferir | Quando |
+| --- | --- | --- | --- |
+| Node.js | 24 (fixado em `web/.nvmrc`) | `node --version` | sempre |
+| Docker | Compose 1.28.6+ | `docker compose version` ou `docker-compose --version` | caminho padrão |
+| JDK | 21 | `java -version` | caminho alternativo |
+| openssl | qualquer | `openssl version` | só para gerar o segredo |
 
 Maven **não** precisa estar instalado: o projeto traz o wrapper (`api/mvnw`).
 SQLite também não — o driver `org.xerial:sqlite-jdbc` é uma dependência Java e
 carrega a engine junto.
+
+Para o Docker serve tanto o plugin (`docker compose`) quanto o script antigo
+(`docker-compose`) — daí a segunda forma de conferir a versão, já que a primeira
+não existe em quem só tem o script. 1.28.6 é o piso porque é de onde
+`compose.yaml` entra na lista de nomes procurados sem `-f`; abaixo disso os
+comandos deste README precisam de `-f compose.yaml`. Verificado com Engine
+29.1.3, plugin 5.4.0 e `docker-compose` 1.29.2.
 
 ## Subindo a aplicação
 
@@ -31,6 +43,16 @@ portas importam: a API só aceita chamadas do navegador vindas de
 lados se muda de porta sozinho.
 
 ### 1. API — `http://localhost:8080`
+
+Escolha um dos dois. Tudo que vem depois neste README vale igual para os dois:
+mesma porta, mesmo `.env`, mesma API, e o front sempre na máquina.
+
+| | Precisa de | Comando | Banco em |
+| --- | --- | --- | --- |
+| **Padrão** | Docker | `docker compose up --build` | volume do Docker |
+| **Alternativa** | JDK 21 | `./mvnw spring-boot:run` | `api/data/app.db` |
+
+Antes de qualquer um dos dois, o mesmo preparo do segredo:
 
 ```bash
 cd api
@@ -47,6 +69,36 @@ O `.env` é git-ignored e lido no boot. **HS256 exige pelo menos 32 bytes**, e a
 aplicação se recusa a subir com o segredo vazio ou curto demais — é uma falha
 explícita no start, não um 500 na primeira chamada.
 
+#### Padrão: a API em container
+
+Não precisa de JDK. Da raiz do repositório:
+
+```bash
+docker compose up --build
+```
+
+O `compose.yaml` lê o mesmo `api/.env` do preparo acima, então o segredo precisa
+existir antes — se você pulou o `cp .env.example .env`, o comando para e reclama
+do arquivo. A primeira execução compila a aplicação dentro da imagem e leva
+alguns minutos; nas seguintes só `src/` é recompilado, porque as dependências
+ficam numa camada que só o `pom.xml` invalida.
+
+O banco fica num volume do Docker, e não em `api/data/`. Para começar do zero:
+
+```bash
+docker compose down -v
+```
+
+Se a sua instalação tem o script antigo em vez do plugin, troque `docker compose`
+por `docker-compose` em todos os comandos deste README. O arquivo é encontrado do
+mesmo jeito.
+
+#### Alternativa: a API com o wrapper
+
+Precisa da JDK 21, e é o caminho mais rápido para quem está mexendo em
+`api/src/`: reinicia em segundos, enquanto o padrão custa uma reconstrução de
+imagem a cada mudança. De dentro de `api/`:
+
 ```bash
 ./mvnw spring-boot:run
 ```
@@ -62,6 +114,9 @@ de dentro de `api/`:
 ```bash
 rm -rf data
 ```
+
+Os dois param aqui: as três suítes de teste rodam à parte, e a de navegador sobe
+uma API própria na 8081 em vez de falar com qualquer um dos dois.
 
 ### 2. Web — `http://localhost:5173`
 
@@ -462,6 +517,20 @@ request. As entradas expiradas são apagadas no próprio logout, sem job agendad
 O preço é deliberado: a API deixa de ser 100% stateless e paga um lookup por
 request autenticado.
 
+**Só a API tem container.** O front segue rodando na máquina porque é onde ele já
+rodava bem, e containerizar os dois lados arrastaria a suíte de navegador junto —
+a imagem do Playwright, os dois servidores, a rede entre eles — para resolver um
+problema que ninguém tinha. O que o container resolve é a JDK 21, a dependência
+mais específica do projeto; Node é mais comum de já estar instalado. O banco fica
+num volume nomeado e não num bind mount de `api/data/`, porque o SQLite aqui
+depende de WAL, `busy_timeout` e lock de arquivo, e é sobre bind mount que o lock
+do SQLite tem problema conhecido — o container introduziria instabilidade
+exatamente onde o projeto já pagou por dois contornos. O preço é o reset virar
+`docker compose down -v`. O Dockerfile também não usa cache mount do BuildKit,
+que seria mais fino: ele falha no builder clássico, que é para onde o Docker cai
+quando o plugin `buildx` não está instalado — e uma máquina assim é justamente a
+que essa imagem existe para atender.
+
 **O log não diz quem errou a senha.** Os pedidos sempre tiveram trilha de
 auditoria (`OrderStatusHistory`); as sessões não tinham nenhuma. Agora login,
 logout e cadastro deixam linha. O identificador que login e logout carregam é o
@@ -560,6 +629,7 @@ da suíte, não a interação.
 
 ```
 api/                              Spring Boot
+  Dockerfile                      build multi-stage: compila e depois só o JRE
   src/main/java/dev/adamsalves/ordertracker/
     auth/                         cadastro, login, logout e revogação de token
     config/                       segurança, JWT, tratamento de erros, OpenAPI
@@ -578,6 +648,7 @@ web/                              Vite + React
     lib/                          formatação, dinheiro, ordenação, erros
     pages/                        login, cadastro, listagem, detalhe, novo pedido
     routes/                       layouts e guarda de rota
+compose.yaml                      sobe a API em container; o front fica de fora
 ```
 
 ## Próximos passos
@@ -599,7 +670,8 @@ Fora do escopo do desafio, na ordem em que fariam mais diferença:
   encurtaria o token de acesso sem obrigar um novo login.
 - **Papéis e permissões.** Todo usuário autenticado pode fazer tudo. Separar quem
   cria pedido de quem move status é o primeiro corte útil.
-- **Docker Compose.** Subiria os dois lados com um comando só, no lugar do
-  passo a passo acima.
+- **O front no Compose também.** Hoje só a API tem container, e por decisão; subir
+  os dois com um comando só significa containerizar a suíte de navegador junto,
+  que é a parte cara da conta.
 - **Postgres no lugar do SQLite.** O `IMMEDIATE` resolve a disputa de escrita para
   um volume pequeno, mas um banco com MVCC não precisaria dela.
