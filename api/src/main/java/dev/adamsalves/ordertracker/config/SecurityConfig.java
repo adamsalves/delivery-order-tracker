@@ -69,6 +69,11 @@ class SecurityConfig {
      * Declared as a source consumed by the filter chain rather than through addCorsMappings, which
      * sits outside the chain and would let the browser preflight be rejected before the real
      * request is ever attempted. Credentials stay off because the token travels in a header.
+     *
+     * <p>The request id has to be exposed by name or the front end cannot read it. A browser hands
+     * a cross-origin response only the handful of headers CORS safelists, and one of our own is not
+     * among them: without this the id arrives, is visible in the network tab, and comes back null
+     * to the code that would put it in front of whoever hit the error.
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
@@ -76,6 +81,7 @@ class SecurityConfig {
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);

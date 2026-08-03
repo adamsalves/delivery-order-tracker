@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -33,6 +35,8 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 class ProblemDetailAuthenticationHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(ProblemDetailAuthenticationHandler.class);
+
     private static final String UNAUTHENTICATED = "A valid bearer token is required to access this resource";
     private static final String FORBIDDEN = "The token presented does not grant access to this resource";
 
@@ -48,6 +52,7 @@ class ProblemDetailAuthenticationHandler implements AuthenticationEntryPoint, Ac
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException failure)
             throws IOException, ServletException {
         unauthenticated.commence(request, response, failure);
+        logRefusal(request, response, failure);
         writeProblem(request, response, UNAUTHENTICATED);
     }
 
@@ -55,7 +60,30 @@ class ProblemDetailAuthenticationHandler implements AuthenticationEntryPoint, Ac
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException failure)
             throws IOException, ServletException {
         forbidden.handle(request, response, failure);
+        logRefusal(request, response, failure);
         writeProblem(request, response, FORBIDDEN);
+    }
+
+    /**
+     * The refusals a bearer API gives most often are written here, and until now they were written
+     * silently: someone working through a route with a token that is expired, revoked or invented
+     * left nothing behind to count, which is the rate the whole exercise was for. The request id was
+     * already coming back on these responses with nothing to correlate it to.
+     *
+     * <p>Shaped like the advice's line so that one grep finds every refusal the API gave, whichever
+     * side of the dispatcher servlet answered it. What it names is the exception, never the message:
+     * a rejected bearer token quotes back what it failed to decode, and the status already says as
+     * much as the body is willing to. The line records that a token was turned down, not which one.
+     *
+     * <p>The status is read off the response because the delegate that ran first is what decided it,
+     * for the same reason the body reads it there.
+     */
+    private void logRefusal(HttpServletRequest request, HttpServletResponse response, Exception failure) {
+        log.warn(
+                "Answered uri={} with {} ({})",
+                request.getRequestURI(),
+                HttpStatus.valueOf(response.getStatus()),
+                failure.getClass().getSimpleName());
     }
 
     /**

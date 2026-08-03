@@ -9,6 +9,8 @@ import dev.adamsalves.ordertracker.user.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,6 +31,8 @@ class AuthService {
      * put it back in circulation for the rest of that window. Keep this at or above the skew.
      */
     private static final Duration REVOCATION_GRACE = Duration.ofMinutes(1);
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private static final int MAX_PASSWORD_BYTES = 72;
 
@@ -67,6 +71,7 @@ class AuthService {
         try {
             User user =
                     userRepository.save(new User(request.name(), email, passwordEncoder.encode(request.password())));
+            log.info("Registered user {}", user.getId());
             return new RegisterResponse(user.getId(), user.getName(), user.getEmail());
         } catch (DataIntegrityViolationException duplicate) {
             // The check above answers the common case with a proper message; this catches the two
@@ -85,14 +90,25 @@ class AuthService {
             // Hashing against a throwaway value keeps an unknown address as slow to reject as a
             // wrong password, so response time does not disclose which accounts exist.
             passwordEncoder.matches(request.password(), decoyHash);
-            throw new InvalidCredentialsException();
+            throw rejected();
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new InvalidCredentialsException();
+            throw rejected();
         }
 
         return tokenService.issueFor(user);
+    }
+
+    /**
+     * Both ways a login fails leave the same line, and it says only that one did. Which address was
+     * tried is what the decoy hash is there to protect: a log naming it — or naming which half of
+     * the pair was wrong — would hand back over the logs the very thing the timing no longer
+     * discloses. What is left is the rate, which is the part worth watching anyway.
+     */
+    private InvalidCredentialsException rejected() {
+        log.warn("Login rejected");
+        return new InvalidCredentialsException();
     }
 
     /**
@@ -104,5 +120,6 @@ class AuthService {
     void logout(Jwt token) {
         revokedTokenRepository.deleteExpiredBefore(Instant.now().minus(REVOCATION_GRACE));
         revokedTokenRepository.save(new RevokedToken(token.getId(), token.getExpiresAt()));
+        log.info("Revoked token {}", token.getId());
     }
 }
