@@ -1,0 +1,25 @@
+# The API the browser suite talks to. Brought up by web/scripts/with-docker-api.ts, which is where
+# every value below comes from, and reachable no other way.
+#
+# A file of its own rather than a profiled service inside compose.yaml, and that is not organisation:
+# compose interpolates the whole file before it works out which profiles to start, so the required
+# variables here would break the documented `docker compose up` even with the service sitting behind
+# a profile. Only a separate file actually keeps it out of that command's way — the profile looked
+# like it worked because compose v1 does not interpolate as strictly.
+#
+# No volume, deliberately. The database lives in the container's writable layer, so a new container
+# is an empty database — the guarantee the suite's first spec asserts, arriving from the container's
+# own lifecycle rather than from an `rm` that has to be spelled per platform.
+#
+# Nothing is hardcoded: the port and the origin reach the runner from e2e/support/servers.ts, the one
+# place naming them, so this file cannot drift from the addresses the specs actually speak to.
+services:
+  api-e2e:
+    build: ./api
+    ports:
+      - "${E2E_API_PORT:?run this through web/scripts/with-docker-api.ts}:${E2E_API_PORT}"
+    environment:
+      SERVER_PORT: ${E2E_API_PORT}
+      SPRING_DATASOURCE_URL: jdbc:sqlite:./data/e2e.db
+      JWT_SECRET: ${E2E_JWT_SECRET:?run this through web/scripts/with-docker-api.ts}
+      APP_CORS_ALLOWED_ORIGINS: ${E2E_WEB_URL:?run this through web/scripts/with-docker-api.ts}
