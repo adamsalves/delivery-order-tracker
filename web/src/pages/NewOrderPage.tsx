@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  MAX_ITEMS,
   useOrderForm,
   type ItemDraft,
   type OrderFormErrors,
@@ -46,6 +47,7 @@ export function NewOrderPage() {
    */
   function handleAdd() {
     const id = form.addItem();
+    if (id === undefined) return;
 
     requestAnimationFrame(() => {
       document.getElementById(itemFieldId(id, "name"))?.focus();
@@ -215,17 +217,30 @@ export function NewOrderPage() {
             </ul>
 
             <div className="border-border flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-              <Button
-                ref={addRef}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={handleAdd}
-              >
-                <Plus />
-                Adicionar item
-              </Button>
+              {/*
+               * At the ceiling the button says why it stopped, next to itself. Disabling it with
+               * nothing beside it would read as the form having broken, and the number it stopped
+               * at is the one the API would have answered with anyway.
+               */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  ref={addRef}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending || !form.canAdd}
+                  onClick={handleAdd}
+                >
+                  <Plus />
+                  Adicionar item
+                </Button>
+
+                {!form.canAdd && (
+                  <p className="text-muted-foreground text-sm">
+                    Um pedido leva no máximo {MAX_ITEMS} itens.
+                  </p>
+                )}
+              </div>
 
               {/* A convenience, and only that: the server prices the order from the items it gets. */}
               <p className="text-sm">

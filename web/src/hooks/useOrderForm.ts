@@ -6,6 +6,9 @@ import { readAmount, type AmountProblem } from "@/lib/money";
 /** Mirrors @Size(max = 255) on the three text fields of the create request. */
 const MAX_TEXT_LENGTH = 255;
 
+/** Mirrors @Size(max = 100) on the items list. */
+export const MAX_ITEMS = 100;
+
 /** The column is an int and the constraint is @Positive, so the ceiling is Java's own. */
 const MAX_QUANTITY = 2_147_483_647;
 
@@ -63,9 +66,12 @@ export interface OrderForm {
   totalCents: number;
   /** False on the last row: the API answers @NotEmpty, and an order with no items is not one. */
   canRemove: boolean;
+  /** False on the hundredth row, which is where the API stops taking them. */
+  canAdd: boolean;
   setCustomerName: (value: string) => void;
   setDeliveryAddress: (value: string) => void;
-  addItem: () => string;
+  /** The id of the row that was added, or undefined at the ceiling, where none was. */
+  addItem: () => string | undefined;
   removeItem: (id: string) => void;
   updateItem: (id: string, patch: Partial<Omit<ItemDraft, "id">>) => void;
   /** The body to send, or null; either way the errors it found come back with it. */
@@ -127,12 +133,19 @@ export function useOrderForm(): OrderForm {
     setErrors((held) => withoutField(held, "deliveryAddress"));
   }, []);
 
+  /*
+   * The button is disabled at the ceiling, so this guard is only reached by a caller that ignored
+   * canAdd. It answers undefined rather than a row it did not create, because what the caller does
+   * with the id is move focus into a field, and there would be none to move it to.
+   */
   const addItem = useCallback(() => {
+    if (items.length >= MAX_ITEMS) return undefined;
+
     const item = emptyItem();
     setItems((held) => held.concat(item));
 
     return item.id;
-  }, []);
+  }, [items.length]);
 
   const removeItem = useCallback((id: string) => {
     setItems((held) =>
@@ -254,6 +267,7 @@ export function useOrderForm(): OrderForm {
     hasErrors: broken(errors),
     totalCents,
     canRemove: items.length > 1,
+    canAdd: items.length < MAX_ITEMS,
     setCustomerName,
     setDeliveryAddress,
     addItem,
