@@ -100,9 +100,18 @@ process.on("SIGINT", () => {});
  */
 let code = 1;
 try {
-  /* --force-recreate because a container left behind by an interrupted run would still be carrying
+  /* --build because --force-recreate recreates the container and not the image: without it compose
+   * only builds when the image is missing, so from the second run onwards the suite would test the
+   * jar from the run before and pass green over whatever just changed in api/src.
+   * --force-recreate because a container left behind by an interrupted run would still be carrying
    * that run's database, and the first spec asserts an empty one. */
-  const started = await compose("up", "-d", "--force-recreate", SERVICE);
+  const started = await compose(
+    "up",
+    "-d",
+    "--build",
+    "--force-recreate",
+    SERVICE,
+  );
 
   if (started === 0) {
     await waitForApi();
