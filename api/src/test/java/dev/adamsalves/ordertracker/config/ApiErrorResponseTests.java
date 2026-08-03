@@ -127,7 +127,8 @@ class ApiErrorResponseTests {
     /**
      * The password ceiling is checked in the service rather than by an annotation, so it arrives as
      * a status-carrying exception instead of a validation failure. It has to come out in the same
-     * shape as the rest.
+     * shape as the rest — which means down to the field it names, and not only down to the status.
+     * Answered in the detail alone, it was the one refused field a caller had to find another way.
      */
     @Test
     void answersAFailureRaisedInsideTheServiceInTheSameShape() throws Exception {
@@ -137,6 +138,8 @@ class ApiErrorResponseTests {
                                 {"name": "Adams Alves", "email": "long@example.com", "password": "%s"}""".formatted("é".repeat(72))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.status").value(400));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Request validation failed"))
+                .andExpect(jsonPath("$.errors.password[0]").value("must be at most 72 bytes long"));
     }
 }

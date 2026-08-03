@@ -38,6 +38,7 @@ import tools.jackson.databind.exc.InvalidFormatException;
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String UNREADABLE_BODY = "Failed to read request";
+    private static final String VALIDATION_FAILED = "Request validation failed";
     private static final int MAX_ECHOED_LENGTH = 50;
 
     @ExceptionHandler(OrderNotFoundException.class)
@@ -60,9 +61,19 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    /**
+     * The one bound checked in a service rather than by an annotation, because it counts bytes and
+     * @Size counts characters. That is a reason to raise it elsewhere, not a reason to answer it
+     * differently: it is still a field of the request being refused, so it leaves naming that field
+     * in {@code errors}, the way every other refused field does. Answered only in {@code detail}, it
+     * was the one refusal a caller had to read a second way to find out which field it was about.
+     */
     @ExceptionHandler(PasswordTooLongException.class)
     ProblemDetail handlePasswordTooLong(PasswordTooLongException ex) {
-        return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
+        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, VALIDATION_FAILED);
+        body.setProperty("errors", Map.of("password", List.of(ex.getMessage())));
+
+        return body;
     }
 
     @ExceptionHandler(UnsupportedSortPropertyException.class)
@@ -74,7 +85,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 
-        ProblemDetail body = createProblemDetail(ex, status, "Request validation failed", null, null, request);
+        ProblemDetail body = createProblemDetail(ex, status, VALIDATION_FAILED, null, null, request);
         body.setProperty("errors", violationsByField(ex));
 
         return handleExceptionInternal(ex, body, headers, status, request);
