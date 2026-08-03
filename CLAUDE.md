@@ -87,7 +87,9 @@ que uma mudança respeite as decisões que sustentam cada parte.
 
 ## Fora de escopo — NÃO implemente, mesmo se parecer útil
 Mapa, geolocalização, entregador/motoboy, roteirização, WebSocket,
-refresh token, roles/permissões, Docker, CI, cache, i18n.
+refresh token, roles/permissões, CI, cache, i18n.
+Docker saiu desta lista: é o caminho PADRÃO da API, descrito no "Estado
+atual". Só cobre a API — containerizar o front continua fora.
 Recuperação de senha e verificação de e-mail também estão fora.
 Filtro por status também está fora: a listagem tem paginação e
 ordenação, e nada além disso.
@@ -180,6 +182,20 @@ sobre elas, e não escopo novo:
   ordenação, máquina de transições e as mensagens de erro.
 - Na API, paginação, ordenação, CORS, o round-trip de criação de pedido e
   os logs (id de correlação, evento de auth, recusa) estão cobertos.
+- A API sobe em container por PADRÃO (`api/Dockerfile` + `compose.yaml`).
+  `./mvnw spring-boot:run` continua funcionando e é a alternativa
+  documentada — mais rápida para quem está mexendo em `api/src/`, porque o
+  padrão paga uma reconstrução de imagem por mudança. O front NÃO é
+  containerizado: roda na máquina nos dois caminhos, e é por isso que a
+  porta e a origem de CORS não mudam. Três decisões que parecem ajuste
+  fino e não são: as dependências resolvem numa camada antes de `src/`
+  chegar; não há cache mount do BuildKit, porque ele falha no builder
+  clássico, que é justamente onde essa imagem precisa funcionar; e
+  `/app/data` é criado e tem dono trocado ANTES do volume montar por cima,
+  senão o volume nomeado chega `root:root` e o processo não-root não
+  escreve o banco. O banco fica em volume nomeado e não em bind mount
+  porque o lock do SQLite tem problema conhecido sobre bind mount do
+  Docker Desktop — o reset passa a ser `docker compose down -v`.
 - `web/e2e/` roda Playwright em Chromium (`npm run test:e2e`). É a única
   camada que exercita os dois processos juntos, e a config sobe os dois
   sozinha: a API em 8081 com `api/data/e2e.db` apagado a cada execução e um
