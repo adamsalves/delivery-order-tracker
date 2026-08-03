@@ -96,4 +96,42 @@ class RefusalLoggingTests {
         assertThat(refusals).hasSize(1);
         assertThat(refusals.getFirst()).contains("/api/orders/404404").contains("404");
     }
+
+    /**
+     * The refusal a bearer API gives most often never reaches the advice: it is written in the
+     * filter chain, before the dispatcher servlet. It is also the one a rate is worth watching for,
+     * and it used to leave nothing at all — the request id came back naming a request no line
+     * mentioned.
+     */
+    @Test
+    void recordsARefusalWrittenBeforeTheApplicationIsReached() throws Exception {
+        mockMvc.perform(get("/api/orders")).andExpect(status().isUnauthorized());
+
+        List<String> refusals = logs.from(ProblemDetailAuthenticationHandler.class, Level.WARN);
+
+        assertThat(refusals).hasSize(1);
+        assertThat(refusals.getFirst()).contains("/api/orders").contains("401");
+    }
+
+    /**
+     * A token that was turned down is still a token, and the exception carrying it back is the
+     * bearer failure quoting what it could not decode. Revoked is the case to press: the token is
+     * well formed and genuinely was ours, so nothing upstream drops it before the line is written.
+     *
+     * <p>The scheme is matched with the space that follows it in the header. Without it the check
+     * passes on the name of the exception itself, which is the one place the word is allowed.
+     */
+    @Test
+    void keepsARefusedTokenOutOfTheLog() throws Exception {
+        String token = api.registerAndLogin(EMAIL);
+
+        mockMvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/orders").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(logs.from(ProblemDetailAuthenticationHandler.class, Level.WARN))
+                .hasSize(1);
+        assertThat(logs.all()).noneMatch(line -> line.contains(token) || line.contains("Bearer "));
+    }
 }
