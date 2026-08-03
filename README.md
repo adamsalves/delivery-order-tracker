@@ -258,12 +258,13 @@ declara. O SQLite não a aplica, então até aqui um nome de 5000 caracteres era
 aceito e gravado — as anotações são o que de fato o recusa.
 
 O teto da senha é do BCrypt e conta **bytes**, então um acento pesa dois: 72
-caracteres acentuados são 144 bytes e não passam. A anotação do DTO conta
-caracteres e está lá para que a mensagem diga um número legível; quem responde
-pelo que o encoder aceita é o `AuthService`.
+caracteres acentuados são 144 bytes e não passam. Esse é o único limite checado
+fora de uma anotação — `@Size` conta caracteres, e quem responde pelo que o
+encoder aceita é o `AuthService`. Onde ele é checado não muda como ele é
+respondido: a recusa sai nomeando `password` em `errors`, como todas as outras.
 
 O front repete os mesmos limites antes de enviar — inclusive o de 100 itens, que
-desabilita o botão de adicionar quando chega lá.
+para de oferecer a adição de linhas quando chega lá, dizendo por quê.
 
 ### Erros
 
