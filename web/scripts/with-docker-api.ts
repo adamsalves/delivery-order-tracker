@@ -143,6 +143,11 @@ try {
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
+
+  /* The container is detached, so nothing of its output has been printed, and the teardown below is
+   * about to remove it along with its log. An API that came up and died — a secret under 32 bytes
+   * is enough — otherwise reports as three minutes of silence and no reason anywhere. */
+  await compose("logs", "--no-color", SERVICE);
 } finally {
   await compose("down", "-v");
 }
