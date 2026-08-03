@@ -328,6 +328,9 @@ pergunta.
 
 ## Testes
 
+São três suítes, em três camadas: a da API, a do front em jsdom, e a de
+navegador, que é a única que roda os dois lados juntos.
+
 ```bash
 cd api
 ./mvnw test
@@ -369,6 +372,9 @@ enum do servidor, a cadeia de precedência das mensagens de erro, e o
 comportamento temporal da listagem — trocar a ordem com uma página ainda a
 caminho, e o que acontece com ela quando chega.
 
+O que ela não alcança está na suíte de navegador, mais abaixo: em jsdom o
+`fetch` é dublado, não existe segunda aba e não existe CSP.
+
 ### Fixtures do teste de contrato
 
 `web/src/api/parse.ts` é escrito à mão e existe para pegar divergência
@@ -393,6 +399,44 @@ cd web && node scripts/record-fixtures.ts
 O token gravado é substituído por um placeholder: o que o teste precisa
 dele é que seja um campo `token` de texto, e um JWT assinado dentro do
 repositório parece credencial para qualquer scanner que passe por ali.
+
+### Suíte de navegador (Playwright)
+
+Esta é a única camada que exercita os dois processos juntos. Ela **sobe os
+dois sozinha** — não precisa de nada no ar, e não atrapalha o que já estiver.
+
+Uma vez, para baixar o navegador:
+
+```bash
+cd web
+npx playwright install chromium
+```
+
+Depois, quantas vezes quiser:
+
+```bash
+npm run test:e2e      # playwright test
+npm run test:e2e:ui   # o modo interativo, para depurar um caso
+```
+
+Ela usa portas próprias, `8081` para a API e `4173` para o front, com um banco
+em `api/data/e2e.db` que é apagado e refeito a cada execução e um segredo
+sorteado na hora. Ou seja: o `.env` e o `api/data/app.db` de desenvolvimento não
+são tocados, e você pode deixar `npm run dev` rodando em 5173 enquanto isso.
+
+O navegador dirige o **bundle do `vite preview`**, e não o dev server. A CSP é
+injetada só no build, então uma suíte apontada para o dev server estaria
+conferindo uma página que nunca é a publicada.
+
+O que ela cobre:
+
+| Arquivo | O que verifica |
+| --- | --- |
+| `fresh-database.setup.ts` | a listagem vazia, e que o banco começou limpo |
+| `order-lifecycle.spec.ts` | cadastro, criação de pedido, `RECEBIDO` até `ENTREGUE`, timeline e total |
+| `stale-transition.spec.ts` | duas abas no mesmo pedido, o 409 e a recuperação da tela |
+| `session.spec.ts` | logout revogando o token no servidor, e a sessão caindo em toda aba |
+| `sorting.spec.ts` | o controle de ordenação sob a CSP do build, e a ordem vinda da API |
 
 ## Formatação
 
@@ -502,6 +546,16 @@ fora de propósito — o navegador ignora ela quando vem em `<meta>`, e diretiva
 não faz nada em silêncio é pior que diretiva ausente. Proteção contra
 clickjacking precisa vir de header, onde quer que isso seja hospedado.
 
+**O E2E dirige o build, e não o dev server.** A CSP acima é injetada por um
+plugin que só roda no build, então uma suíte apontada para `npm run dev`
+estaria conferindo uma página que nunca é a publicada. Ela sobe `vite preview`
+em 4173 e a API em 8081, com banco e segredo descartáveis, o que também deixa
+as portas e o banco de desenvolvimento livres para quem estiver trabalhando ao
+mesmo tempo. E vale a pena: com `style-src 'self'` de volta, o navegador
+registra dezoito recusas ao posicionar o popover do controle de ordenação —
+mas o controle ainda responde ao clique. Quem pega isso é o ouvinte de console
+da suíte, não a interação.
+
 ## Estrutura
 
 ```
@@ -515,6 +569,7 @@ api/                              Spring Boot
     application.properties
   src/test/java/                  testes de integração e de unidade
 web/                              Vite + React
+  e2e/                            suíte de navegador (Playwright)
   src/
     api/                          cliente HTTP, tipos e parsers de resposta
     auth/                         sessão e contexto de autenticação
@@ -529,9 +584,13 @@ web/                              Vite + React
 
 Fora do escopo do desafio, na ordem em que fariam mais diferença:
 
-- **Cobertura de componente no front.** O runner já está configurado, e a
-  lógica pura está coberta. Falta o que exige renderizar: o formulário de
-  criação e as telas.
+- **Cobertura de componente no front.** A lógica pura está coberta em jsdom e
+  os caminhos felizes das telas estão cobertos no navegador. O buraco no meio
+  são as ramificações do formulário de criação — cada regra de validação, cada
+  linha adicionada e removida — que o E2E cobriria devagar demais.
+- **Rodar as três suítes em CI.** Existem três comandos e nada que os execute
+  sozinho; o E2E, que sobe os dois processos por conta própria, é o que mais
+  ganharia com isso.
 - **Filtro por status na listagem.** O caminho natural depois da ordenação.
 - **Teto no tamanho do corpo.** O limite de 100 itens recusa depois que o Jackson
   já montou a lista: corta o que é gravado e o que é respondido, não o que é
