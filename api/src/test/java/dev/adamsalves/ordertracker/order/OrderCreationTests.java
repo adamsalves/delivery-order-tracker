@@ -172,6 +172,19 @@ class OrderCreationTests {
                 .andExpect(jsonPath("$.items.length()").value(100));
     }
 
+    /**
+     * The floor the list always had and nothing ever asked for. It is half of what the limits are
+     * documented as — "from 1 to 100" — and an order of nothing is not one.
+     */
+    @Test
+    void refusesAnOrderCarryingNoItemsAtAll() throws Exception {
+        create(itemsRepeated(0))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.items").isArray());
+
+        assertThat(orderRepository.count()).isZero();
+    }
+
     private ResultActions create(String body) throws Exception {
         return mockMvc.perform(post("/api/orders")
                 .header(AUTHORIZATION, "Bearer " + token)

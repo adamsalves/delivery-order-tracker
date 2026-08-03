@@ -171,6 +171,8 @@ class AuthFlowIntegrationTests {
                         .content(registration("Adams Alves", EMAIL, "short")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.password[0]").value("size must be between 8 and 72"));
+
+        assertThat(userRepository.count()).isZero();
     }
 
     /**
@@ -187,6 +189,21 @@ class AuthFlowIntegrationTests {
                 .andExpect(jsonPath("$.errors.name").isArray());
 
         assertThat(userRepository.count()).isZero();
+    }
+
+    /**
+     * The far side of the same bound. A ceiling written with the wrong comparison refuses the width
+     * it was meant to allow, and nothing above would notice: 256 comes back 400 either way.
+     */
+    @Test
+    void takesANameSittingExactlyOnTheColumnWidth() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("a".repeat(255), EMAIL, PASSWORD)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("a".repeat(255)));
+
+        assertThat(userRepository.count()).isOne();
     }
 
     /**
