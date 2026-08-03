@@ -10,7 +10,7 @@ export interface Session {
  * alternative is an httpOnly cookie, and that is a decision for the API: it would mean reinstating
  * CSRF protection and giving up the bearer header the resource server reads.
  */
-const STORAGE_KEY = "order-tracker.session";
+export const STORAGE_KEY = "order-tracker.session";
 
 type Listener = (session: Session | null) => void;
 
@@ -95,21 +95,58 @@ export function getSession(): Session | null {
   return current;
 }
 
-export function setSession(next: Session | null): void {
+function notify(next: Session | null): void {
   current = next;
-  writeStored(next === null ? null : JSON.stringify(next));
 
   for (const listener of listeners) listener(next);
+}
+
+export function setSession(next: Session | null): void {
+  writeStored(next === null ? null : JSON.stringify(next));
+  notify(next);
 }
 
 export function clearSession(): void {
   setSession(null);
 }
 
+/**
+ * The same storage, changed by another tab. A browser raises this only in the tabs that did not make
+ * the change, so it never answers our own write — and without it, signing out in one tab left every
+ * other tab rendering as signed in, holding a token the API had already revoked. That tab only found
+ * out when it next spoke to the API, which on the listing screen may be never.
+ *
+ * <p>The value on the event is ignored in favour of re-reading, so the three ways the key can change
+ * — rewritten, removed, or taken out by a clear() that names no key at all — arrive here as one.
+ */
+function onStorageChanged(event: StorageEvent): void {
+  if (event.key !== null && event.key !== STORAGE_KEY) return;
+
+  const next = load();
+
+  /* Two tabs holding the same session is the ordinary case, and not news worth a re-render. */
+  if (next?.token === current?.token) return;
+
+  notify(next);
+}
+
+/**
+ * The window listener is held only while somebody is subscribed, and there is one of it however many
+ * subscribers there are: attaching per subscriber would answer a single change once for each of
+ * them, and each of those answers notifies all the others.
+ */
 export function subscribeToSession(listener: Listener): () => void {
   listeners.add(listener);
 
+  if (listeners.size === 1) {
+    window.addEventListener("storage", onStorageChanged);
+  }
+
   return () => {
     listeners.delete(listener);
+
+    if (listeners.size === 0) {
+      window.removeEventListener("storage", onStorageChanged);
+    }
   };
 }
