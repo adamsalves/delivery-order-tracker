@@ -10,6 +10,13 @@ import { describeError, fieldErrorOf } from "@/lib/errors";
 
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * Mirrors @Size(max = 255) on the register request, itself the width of the column behind each
+ * field. Counted on the value as typed, because that is the value the server measures: it trims the
+ * address only once validation has already run, and never trims the name at all.
+ */
+const MAX_TEXT_LENGTH = 255;
+
 /** BCrypt's own ceiling, which the API enforces. Counted in bytes, so an accent costs two. */
 const MAX_PASSWORD_BYTES = 72;
 
@@ -26,9 +33,11 @@ function validate(name: string, email: string, password: string): FieldErrors {
   const errors: FieldErrors = {};
 
   if (name.trim() === "") errors.name = "Informe seu nome.";
+  else if (name.length > MAX_TEXT_LENGTH) errors.name = tooLong();
 
   if (email.trim() === "") errors.email = "Informe seu e-mail.";
   else if (!/^\S+@\S+\.\S+$/.test(email)) errors.email = "E-mail inválido.";
+  else if (email.length > MAX_TEXT_LENGTH) errors.email = tooLong();
 
   if (password === "") errors.password = "Informe uma senha.";
   else if (password.length < MIN_PASSWORD_LENGTH) {
@@ -38,6 +47,11 @@ function validate(name: string, email: string, password: string): FieldErrors {
   }
 
   return errors;
+}
+
+/** The same sentence the order form uses for the same ceiling, so the two screens agree. */
+function tooLong(): string {
+  return `No máximo ${MAX_TEXT_LENGTH} caracteres.`;
 }
 
 export function RegisterPage() {
