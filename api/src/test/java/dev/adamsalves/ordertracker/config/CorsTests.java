@@ -4,6 +4,7 @@ import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTI
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -93,6 +94,21 @@ class CorsTests {
         mockMvc.perform(get("/api/orders").header(ORIGIN, DEV_SERVER).header(AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(header().string(ACCESS_CONTROL_ALLOW_ORIGIN, DEV_SERVER));
+    }
+
+    /**
+     * Arriving is not the same as being readable. The browser withholds every response header a
+     * cross-origin caller was not told it may see, and the request id is one of ours, so without
+     * being named here it reaches the front end only to read back as null — which is the whole of
+     * what it is for, since the front end is what the person reporting the error is looking at.
+     */
+    @Test
+    void letsTheBrowserReadTheRequestId() throws Exception {
+        String token = new ApiTestClient(mockMvc, objectMapper).registerAndLogin("expose@example.com");
+
+        mockMvc.perform(get("/api/orders").header(ORIGIN, DEV_SERVER).header(AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string(ACCESS_CONTROL_EXPOSE_HEADERS, RequestIdFilter.HEADER));
     }
 
     /**
