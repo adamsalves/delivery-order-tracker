@@ -158,6 +158,22 @@ class AuthFlowIntegrationTests {
     }
 
     /**
+     * The message is the whole point of the annotation carrying a ceiling. Left open, Bean
+     * Validation builds it from both ends of the range and the end nobody wrote is Integer.MAX_VALUE
+     * — so the caller reading the API without the front end in front of them was told the password
+     * had to be "between 8 and 2147483647".
+     */
+    @Test
+    void namesThePasswordBoundsInAMessageAPersonCanRead() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("Adams Alves", EMAIL, "short")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password[0]")
+                        .value("must be at least 8 characters long and at most 72 bytes"));
+    }
+
+    /**
      * The column behind the name is 255 characters wide and SQLite enforces none of the width it was
      * declared with, so the annotation is the only thing standing between a name of any size and the
      * table. A refusal that still wrote the row would be the worse half of both answers.

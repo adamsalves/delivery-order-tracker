@@ -85,6 +85,10 @@ class ApiErrorResponseTests {
      * resolves it from Accept-Language, which is the usual reason an API answers "não deve estar em
      * branco" next to an English detail. What keeps it from happening here is a fixed locale, set
      * in application.properties; these cases are what would notice if that were dropped.
+     *
+     * <p>The password is the one field answering with a message of our own, which no bundle can
+     * translate. It rides along because the point is what the caller reads, and a payload that went
+     * bilingual would do it between these three lines.
      */
     @ParameterizedTest
     @ValueSource(strings = {"pt-BR", "pt", "en", "de"})
@@ -97,7 +101,8 @@ class ApiErrorResponseTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name[0]").value("must not be blank"))
                 .andExpect(jsonPath("$.errors.email[0]").value("must be a well-formed email address"))
-                .andExpect(jsonPath("$.errors.password[0]").value("size must be between 8 and 2147483647"));
+                .andExpect(jsonPath("$.errors.password[0]")
+                        .value("must be at least 8 characters long and at most 72 bytes"));
     }
 
     /**
