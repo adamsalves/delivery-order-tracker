@@ -354,7 +354,18 @@ nome da propriedade e o padrão do Boot precisam concordar entre si, nenhum dos
 três é conferido pelo compilador, e trocar a chave por outra deixava a suíte
 inteira verde imprimindo colchetes vazios.
 
-O front ainda não tem suíte — está listado em [Próximos passos](#próximos-passos).
+No front:
+
+```bash
+cd web
+npm test           # vitest run
+npm run test:watch # vitest em modo watch
+```
+
+A suíte roda em jsdom e não precisa da API no ar. Cobre a leitura de preço
+em centavos inteiros, a tabela de ordenação conferida contra as
+propriedades que a API aceita, a máquina de transições conferida contra o
+enum do servidor, e a cadeia de precedência das mensagens de erro.
 
 ## Formatação
 
@@ -474,9 +485,9 @@ web/                              Vite + React
 
 Fora do escopo do desafio, na ordem em que fariam mais diferença:
 
-- **Suíte de testes no front.** Não há runner configurado em `web/`. Vitest com
-  Testing Library cobriria o parser de resposta, a máquina de transições da tela
-  de detalhe e o formulário de criação.
+- **Cobertura de componente no front.** O runner já está configurado, e a
+  lógica pura está coberta. Falta o que exige renderizar: o formulário de
+  criação e as telas.
 - **Filtro por status na listagem.** O caminho natural depois da ordenação.
 - **Teto no tamanho do corpo.** O limite de 100 itens recusa depois que o Jackson
   já montou a lista: corta o que é gravado e o que é respondido, não o que é

@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -18,5 +18,20 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+  },
+  /*
+   * The suite is configured here rather than in a vitest.config.ts of its own, so that the `@` alias
+   * and the react plugin have one definition and cannot drift from what the application is built
+   * with — a test resolving an import differently from the bundle is a test of something else.
+   *
+   * No `globals`. The tests import describe, it and expect the same way the rest of the codebase
+   * imports everything else, which also keeps `types` out of tsconfig.app.json.
+   */
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    include: ["src/**/*.test.{ts,tsx}"],
+    clearMocks: true,
+    restoreMocks: true,
   },
 });
