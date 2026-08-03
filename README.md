@@ -35,6 +35,11 @@ não existe em quem só tem o script. 1.28.6 é o piso porque é de onde
 comandos deste README precisam de `-f compose.yaml`. Verificado com Engine
 29.1.3, plugin 5.4.0 e `docker-compose` 1.29.2.
 
+A escolha aparece duas vezes, e é independente nas duas: ao
+[subir a API](#1-api--httplocalhost8080) e ao
+[rodar a suíte de navegador](#suíte-de-navegador-playwright), que sobe uma API
+só dela e não fala com o container da aplicação.
+
 ## Subindo a aplicação
 
 São dois processos, em dois terminais. A ordem entre eles não importa, mas as
@@ -116,7 +121,9 @@ rm -rf data
 ```
 
 Os dois param aqui: as três suítes de teste rodam à parte, e a de navegador sobe
-uma API própria na 8081 em vez de falar com qualquer um dos dois.
+uma API própria na 8081 em vez de falar com qualquer um dos dois. Ela tem a mesma
+escolha, feita separadamente — veja
+[Padrão: a suíte contra um container](#padrão-a-suíte-contra-um-container).
 
 ### 2. Web — `http://localhost:5173`
 
@@ -386,6 +393,19 @@ pergunta.
 São três suítes, em três camadas: a da API, a do front em jsdom, e a de
 navegador, que é a única que roda os dois lados juntos.
 
+O que cada uma exige, já que a API tem dois caminhos:
+
+| Suíte | Comando | Precisa de |
+| --- | --- | --- |
+| API | `./mvnw test` | JDK 21 |
+| Front em jsdom | `npm test` | Node |
+| Navegador | `npm run test:e2e` | Docker |
+| Navegador, alternativa | `npm run test:e2e:native` | JDK 21 |
+
+A de navegador é a única com dois caminhos. A da API roda sempre com o wrapper:
+a imagem é construída com os testes pulados, de propósito, porque eles já rodam
+aqui.
+
 ```bash
 cd api
 ./mvnw test
@@ -467,21 +487,62 @@ cd web
 npx playwright install chromium
 ```
 
-Depois, quantas vezes quiser:
+A API que ela sobe é dela, nunca a do `docker compose up` — então a escolha entre
+padrão e alternativa acontece de novo aqui, e é independente da que você fez no
+passo da API.
 
-```bash
-npm run test:e2e      # playwright test
-npm run test:e2e:ui   # o modo interativo, para depurar um caso
-```
+| | Precisa de | Comando | Banco descartável em |
+| --- | --- | --- | --- |
+| **Padrão** | Docker | `npm run test:e2e` | camada gravável do container |
+| **Alternativa** | JDK 21 | `npm run test:e2e:native` | `api/data/e2e.db` |
 
-Ela usa portas próprias, `8081` para a API e `4173` para o front, com um banco
-em `api/data/e2e.db` que é apagado e refeito a cada execução e um segredo
-sorteado na hora. Ou seja: o `.env` e o `api/data/app.db` de desenvolvimento não
-são tocados, e você pode deixar `npm run dev` rodando em 5173 enquanto isso.
+Nos dois, ela usa portas próprias — `8081` para a API e `4173` para o front —,
+recria o banco a cada execução e sorteia um segredo na hora. Ou seja: o `.env` e
+o `api/data/app.db` de desenvolvimento não são tocados, e você pode deixar
+`npm run dev` rodando em 5173 enquanto isso.
 
 O navegador dirige o **bundle do `vite preview`**, e não o dev server. A CSP é
 injetada só no build, então uma suíte apontada para o dev server estaria
 conferindo uma página que nunca é a publicada.
+
+#### Padrão: a suíte contra um container
+
+```bash
+npm run test:e2e      # a suíte
+npm run test:e2e:ui   # o mesmo, em modo interativo
+```
+
+A imagem é reconstruída a cada execução, e isso é de propósito: sem reconstruir,
+a partir da segunda vez a suíte rodaria contra o jar da vez anterior e passaria
+verde ignorando o que você acabou de mudar em `api/src/`. A primeira execução
+compila a aplicação inteira e leva alguns minutos; depois as camadas ficam em
+cache e só uma mudança em `src/` é paga de novo. Nada disso concorre com o tempo
+limite da suíte — a espera pela API só começa depois que a imagem está pronta.
+
+O banco limpo não vem de apagar um arquivo, vem do container ser novo: o serviço
+`api-e2e` não monta volume nenhum, então o banco vive na camada gravável e morre
+com ele. Nada sobra — o container e a rede são removidos no fim, mesmo quando o
+teste falha e mesmo com Ctrl-C durante a espera. Volume não há para remover, e o
+`-v` no teardown protege de um vir a existir sem ninguém reparar.
+
+O serviço roda num **projeto Docker separado** (`order-tracker-e2e`). Isso não é
+detalhe: `down -v` apaga os volumes do projeto inteiro, e se ele dividisse o
+projeto com o `docker compose up` da aplicação, encerrar a suíte levaria junto o
+`api-data` — o seu banco de desenvolvimento.
+
+Este caminho também não usa `rm` nem `./mvnw`, que são o que prende a alternativa
+a um shell Unix. Isso o deixa mais perto de funcionar num terminal do Windows,
+mas não foi executado lá: trate como provável, não como verificado.
+
+#### Alternativa: a suíte com o wrapper
+
+```bash
+npm run test:e2e:native            # a suíte
+npm run test:e2e:native -- --ui    # o mesmo, em modo interativo
+```
+
+A API sobe com `./mvnw`, e o banco em `api/data/e2e.db` é apagado e refeito no
+início de cada execução.
 
 O que ela cobre:
 
