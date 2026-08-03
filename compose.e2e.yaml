@@ -16,8 +16,11 @@
 services:
   api-e2e:
     build: ./api
+    # Bound to the loopback rather than to every interface: the only things that talk to this are the
+    # runner and the browser it drives, both on this machine, and a throwaway API carrying a
+    # throwaway database has no reason to answer the rest of the network while the suite runs.
     ports:
-      - "${E2E_API_PORT:?run this through web/scripts/with-docker-api.ts}:${E2E_API_PORT}"
+      - "127.0.0.1:${E2E_API_PORT:?run this through web/scripts/with-docker-api.ts}:${E2E_API_PORT}"
     environment:
       SERVER_PORT: ${E2E_API_PORT}
       SPRING_DATASOURCE_URL: jdbc:sqlite:./data/e2e.db
