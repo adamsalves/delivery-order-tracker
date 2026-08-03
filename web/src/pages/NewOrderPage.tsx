@@ -17,6 +17,9 @@ import { describeError, hasFieldErrors } from "@/lib/errors";
 import { itemFieldId, type ItemField } from "@/lib/fieldIds";
 import { formatCents } from "@/lib/money";
 
+/** What the add button points at once it stops offering rows, so the reason is read with it. */
+const ITEMS_CEILING_ID = "items-ceiling";
+
 export function NewOrderPage() {
   const form = useOrderForm();
   const navigate = useNavigate();
@@ -218,9 +221,18 @@ export function NewOrderPage() {
 
             <div className="border-border flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
               {/*
-               * At the ceiling the button says why it stopped, next to itself. Disabling it with
+               * At the ceiling the button says why it stopped, next to itself. Stopping with
                * nothing beside it would read as the form having broken, and the number it stopped
                * at is the one the API would have answered with anyway.
+               *
+               * aria-disabled rather than disabled, because a disabled button is out of the tab
+               * order and out of reach: whoever navigates by keyboard or reads by screen reader
+               * would never land on the control and never hear the sentence explaining it. It also
+               * keeps the button focusable, which is what handleRemove depends on — a row removed
+               * at the ceiling focuses it back, and that runs before the render that would have
+               * re-enabled it, so a disabled one would have dropped focus to the body.
+               *
+               * Pressing it anyway is a no-op the hook already guards, and answers undefined.
                */}
               <div className="flex flex-wrap items-center gap-3">
                 <Button
@@ -228,15 +240,21 @@ export function NewOrderPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={pending || !form.canAdd}
+                  disabled={pending}
+                  aria-disabled={!form.canAdd}
+                  aria-describedby={form.canAdd ? undefined : ITEMS_CEILING_ID}
                   onClick={handleAdd}
+                  className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
                 >
                   <Plus />
                   Adicionar item
                 </Button>
 
                 {!form.canAdd && (
-                  <p className="text-muted-foreground text-sm">
+                  <p
+                    id={ITEMS_CEILING_ID}
+                    className="text-muted-foreground text-sm"
+                  >
                     Um pedido leva no máximo {MAX_ITEMS} itens.
                   </p>
                 )}
