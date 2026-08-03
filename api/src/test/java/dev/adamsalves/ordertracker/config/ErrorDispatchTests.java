@@ -2,6 +2,10 @@ package dev.adamsalves.ordertracker.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import dev.adamsalves.ordertracker.support.RecordedLogs;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,10 +38,17 @@ class ErrorDispatchTests {
     private int port;
 
     private RestClient client;
+    private RecordedLogs logs;
 
     @BeforeEach
     void pointAtTheRunningServer() {
         client = RestClient.create("http://localhost:" + port);
+        logs = new RecordedLogs();
+    }
+
+    @AfterEach
+    void stopListening() {
+        logs.close();
     }
 
     /**
@@ -50,6 +61,29 @@ class ErrorDispatchTests {
         HttpStatusCode status = client.get().uri("/api/boom").exchange((request, response) -> response.getStatusCode());
 
         assertThat(status).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /**
+     * The one line in the API that carries a stack trace, and the reason the filter catches on the
+     * way out at all. The container writes its own account of the same failure afterwards, by which
+     * point the request has left the filter and the id is gone from the MDC — this is the copy that
+     * can still be tied to the request that caused it.
+     *
+     * <p>Runs here rather than under MockMvc because this is where a failure genuinely goes
+     * unhandled: the advice answers everything that reaches the dispatcher servlet.
+     */
+    @Test
+    void recordsTheFailureNobodyHandled() {
+        client.get().uri("/api/boom").exchange((request, response) -> response.getStatusCode());
+
+        List<String> failures = logs.from(RequestIdFilter.class, Level.ERROR);
+
+        assertThat(failures).hasSize(1);
+        assertThat(failures.getFirst())
+                .contains("GET")
+                .contains("/api/boom")
+                .contains("IllegalStateException")
+                .contains("\tat ");
     }
 
     /**
