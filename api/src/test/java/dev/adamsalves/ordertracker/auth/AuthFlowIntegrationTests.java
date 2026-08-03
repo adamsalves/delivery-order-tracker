@@ -161,7 +161,8 @@ class AuthFlowIntegrationTests {
      * The message is the whole point of the annotation carrying a ceiling. Left open, Bean
      * Validation builds it from both ends of the range and the end nobody wrote is Integer.MAX_VALUE
      * — so the caller reading the API without the front end in front of them was told the password
-     * had to be "between 8 and 2147483647".
+     * had to be "between 8 and 2147483647". Naming the max is what fixes it; the sentence itself is
+     * still the stock one, and pinning it here is what would notice the number going back.
      */
     @Test
     void namesThePasswordBoundsInAMessageAPersonCanRead() throws Exception {
@@ -169,8 +170,7 @@ class AuthFlowIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("Adams Alves", EMAIL, "short")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.password[0]")
-                        .value("must be at least 8 characters long and at most 72 bytes"));
+                .andExpect(jsonPath("$.errors.password[0]").value("size must be between 8 and 72"));
     }
 
     /**
