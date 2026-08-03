@@ -157,6 +157,33 @@ class AuthFlowIntegrationTests {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * The column behind the name is 255 characters wide and SQLite enforces none of the width it was
+     * declared with, so the annotation is the only thing standing between a name of any size and the
+     * table. A refusal that still wrote the row would be the worse half of both answers.
+     */
+    @Test
+    void refusesANameLongerThanTheColumnBehindIt() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("a".repeat(256), EMAIL, PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name").isArray());
+
+        assertThat(userRepository.count()).isZero();
+    }
+
+    @Test
+    void refusesAnAddressLongerThanTheColumnBehindIt() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("Adams Alves", "a".repeat(244) + "@example.com", PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.email").isArray());
+
+        assertThat(userRepository.count()).isZero();
+    }
+
     private void register(String email, String password) throws Exception {
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
