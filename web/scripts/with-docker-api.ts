@@ -47,7 +47,10 @@ const env = {
   E2E_API_PORT: new URL(API_URL).port,
   E2E_WEB_URL: WEB_URL,
   E2E_JWT_SECRET: JWT_SECRET,
-  E2E_API: "docker",
+  /* Read by playwright.config.ts, and named for what it asserts rather than for this path: it is the
+   * single thing that turns reuseExistingServer on, and a name as guessable as E2E_API=docker left
+   * in somebody's shell would hand `npm run test:e2e:native` whatever is on 8081. */
+  E2E_API_ALREADY_STARTED: "1",
 };
 
 function run(command: string, args: string[]): Promise<number> {
