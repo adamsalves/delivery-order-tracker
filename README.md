@@ -480,10 +480,27 @@ para preservar o header `WWW-Authenticate`.
 e o `Intl` esconde isso até a lista ficar longa o bastante para não esconder mais.
 As duas telas que mostram total contam da mesma forma.
 
-**O token fica no `localStorage`.** É exposição a XSS em troca de sobreviver a um
-refresh da página. A alternativa é um cookie `httpOnly`, e essa decisão é da API,
-não do front: significaria reinstaurar proteção contra CSRF e abrir mão do header
-`Authorization` que o resource server lê.
+**O token fica no `localStorage`, e a resposta ao XSS é uma CSP.** É exposição a
+XSS em troca de sobreviver a um refresh da página. A alternativa seria um cookie
+`httpOnly`, e ela resolve menos do que parece: um cookie `httpOnly` impede a
+**exfiltração**, não o XSS. Quem roda JavaScript na origem não precisa ler o
+cookie — o navegador anexa ele em toda requisição que essa pessoa fizer, e a
+sessão é usada no lugar. A diferença real é o alcance: `localStorage` permite
+"roubar o token e usar de qualquer lugar por 24h", `httpOnly` reduz para "abusar
+da sessão enquanto a página estiver aberta". É ganho verdadeiro, mas parcial — e
+aqui o primeiro caso já é encurtado por algo que a maioria dos projetos com JWT
+não faz: **o logout revoga o token no servidor**. A troca ainda traria CSRF de
+volta como superfície nova para acertar.
+
+O que faltava mesmo era CSP, e agora existe: `default-src 'self'`, `script-src
+'self'`, `connect-src` nomeando a API. Ela é gerada no build (`vite.config.ts`),
+porque uma das diretivas depende de `VITE_API_URL`. `style-src` carrega
+`'unsafe-inline'` por necessidade medida, não por padrão: o Radix escreve
+atributos `style` para posicionar o popover, e com `style-src 'self'` o Chromium
+bloqueia e o controle de ordenação para de abrir. `frame-ancestors` ficou de
+fora de propósito — o navegador ignora ela quando vem em `<meta>`, e diretiva que
+não faz nada em silêncio é pior que diretiva ausente. Proteção contra
+clickjacking precisa vir de header, onde quer que isso seja hospedado.
 
 ## Estrutura
 
