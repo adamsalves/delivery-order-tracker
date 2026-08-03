@@ -35,6 +35,10 @@ const SERVICE = "api-e2e";
  * it: compose is awaited first, so this clock only starts once there is a container to wait for. */
 const READY_TIMEOUT_MS = 180_000;
 
+/* Long enough that a slow first response is not read as a dead server, short enough that a peer
+ * which accepts and then says nothing cannot sit on the whole budget above. */
+const PROBE_TIMEOUT_MS = 2_000;
+
 /** Minted per run and never written down, exactly as playwright.config.ts does for the other path. */
 const JWT_SECRET = randomBytes(48).toString("base64");
 
@@ -74,10 +78,15 @@ async function waitForApi(): Promise<void> {
   const deadline = Date.now() + READY_TIMEOUT_MS;
 
   while (Date.now() < deadline) {
+    if (cancelled) throw new Error("Interrupted while waiting for the API.");
+
     try {
       /* Public by design, and it only answers once the context is up — the same probe the other
-       * server is checked with. */
-      const response = await fetch(`${API_URL}/v3/api-docs`);
+       * server is checked with. Bounded because a peer that accepts the connection and then never
+       * answers would otherwise hold this loop for the whole budget on a single attempt. */
+      const response = await fetch(`${API_URL}/v3/api-docs`, {
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      });
       if (response.ok) return;
     } catch {
       /* Not listening yet. */
@@ -86,13 +95,21 @@ async function waitForApi(): Promise<void> {
   }
 
   throw new Error(
-    `A API não respondeu em ${API_URL} dentro de ${READY_TIMEOUT_MS / 1000}s.`,
+    `The API did not answer at ${API_URL} within ${READY_TIMEOUT_MS / 1000}s.`,
   );
 }
 
-/* Ctrl-C reaches the container through the child's inherited stdio; swallowing it here keeps this
- * process alive long enough for the teardown in the finally to actually run. */
-process.on("SIGINT", () => {});
+/*
+ * Set by SIGINT rather than acted on there. Ctrl-C reaches the children through the foreground
+ * process group, so whatever is running dies on its own; what the handler has to do is stop this
+ * process from exiting with it, or the teardown below never runs and the container is left behind.
+ * The wait loop reads this, because a handler that only swallows the signal makes the wait itself
+ * uninterruptible — Ctrl-C during it did nothing and the only way out ran the teardown over.
+ */
+let cancelled = false;
+process.on("SIGINT", () => {
+  cancelled = true;
+});
 
 /*
  * Nothing in here calls process.exit: it would skip the teardown below and leave the container, its
