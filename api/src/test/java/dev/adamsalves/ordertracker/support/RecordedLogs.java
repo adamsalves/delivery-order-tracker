@@ -3,6 +3,8 @@ package dev.adamsalves.ordertracker.support;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import ch.qos.logback.core.read.ListAppender;
 import java.util.List;
 import java.util.function.Predicate;
@@ -40,10 +42,21 @@ public class RecordedLogs implements AutoCloseable {
     }
 
     private List<String> messages(Predicate<ILoggingEvent> matching) {
-        return recorded.list.stream()
-                .filter(matching)
-                .map(ILoggingEvent::getFormattedMessage)
-                .toList();
+        return recorded.list.stream().filter(matching).map(RecordedLogs::render).toList();
+    }
+
+    /**
+     * The stack trace is part of the line, not something attached to it. Most of what these cases
+     * assert is that a value never appears anywhere in the log, and a throwable is the likeliest way
+     * one would arrive without anybody writing it: reading only the formatted message would let a
+     * secret through inside a {@code caused by} and still report the assertion as passing.
+     */
+    private static String render(ILoggingEvent event) {
+        IThrowableProxy failure = event.getThrowableProxy();
+
+        return failure == null
+                ? event.getFormattedMessage()
+                : event.getFormattedMessage() + System.lineSeparator() + ThrowableProxyUtil.asString(failure);
     }
 
     private Logger root() {
