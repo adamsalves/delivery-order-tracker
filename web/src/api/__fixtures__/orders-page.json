@@ -1,0 +1,24 @@
+{
+  "content": [
+    {
+      "id": 3,
+      "customerName": "Carla Dias",
+      "deliveryAddress": "Rua das Flores, 102",
+      "status": "RECEBIDO",
+      "createdAt": "2026-08-03T00:59:29.590Z"
+    },
+    {
+      "id": 2,
+      "customerName": "Bruno Lima",
+      "deliveryAddress": "Rua das Flores, 101",
+      "status": "RECEBIDO",
+      "createdAt": "2026-08-03T00:59:29.574Z"
+    }
+  ],
+  "page": {
+    "size": 2,
+    "number": 0,
+    "totalElements": 3,
+    "totalPages": 2
+  }
+}

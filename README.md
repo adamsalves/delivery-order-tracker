@@ -365,7 +365,34 @@ npm run test:watch # vitest em modo watch
 A suíte roda em jsdom e não precisa da API no ar. Cobre a leitura de preço
 em centavos inteiros, a tabela de ordenação conferida contra as
 propriedades que a API aceita, a máquina de transições conferida contra o
-enum do servidor, e a cadeia de precedência das mensagens de erro.
+enum do servidor, a cadeia de precedência das mensagens de erro, e o
+comportamento temporal da listagem — trocar a ordem com uma página ainda a
+caminho, e o que acontece com ela quando chega.
+
+### Fixtures do teste de contrato
+
+`web/src/api/parse.ts` é escrito à mão e existe para pegar divergência
+entre os dois lados. Quem confere ele são respostas **gravadas de uma API
+de verdade**, em `web/src/api/__fixtures__/` — um corpo inventado no teste
+concordaria com o parser por construção.
+
+Os arquivos estão commitados e o teste roda offline. Para regravar, depois
+de mudar o contrato, suba a API apontando para um banco e um segredo
+descartáveis — nunca para os de desenvolvimento:
+
+```bash
+cd api
+SPRING_DATASOURCE_URL=jdbc:sqlite:./data/fixtures.db \
+JWT_SECRET=$(openssl rand -base64 48) ./mvnw spring-boot:run
+```
+
+```bash
+cd web && node scripts/record-fixtures.ts
+```
+
+O token gravado é substituído por um placeholder: o que o teste precisa
+dele é que seja um campo `token` de texto, e um JWT assinado dentro do
+repositório parece credencial para qualquer scanner que passe por ali.
 
 ## Formatação
 

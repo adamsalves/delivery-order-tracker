@@ -1,0 +1,45 @@
+{
+  "id": 1,
+  "customerName": "Ana Souza",
+  "deliveryAddress": "Rua das Flores, 100",
+  "status": "SAIU_PARA_ENTREGA",
+  "createdAt": "2026-08-03T00:59:29.535Z",
+  "updatedAt": "2026-08-03T00:59:29.675Z",
+  "items": [
+    {
+      "id": 1,
+      "name": "Pizza margherita",
+      "quantity": 2,
+      "unitPrice": 45.9
+    },
+    {
+      "id": 2,
+      "name": "Refrigerante",
+      "quantity": 1,
+      "unitPrice": 10
+    }
+  ],
+  "history": [
+    {
+      "id": 1,
+      "fromStatus": null,
+      "toStatus": "RECEBIDO",
+      "changedAt": "2026-08-03T00:59:29.542Z",
+      "changedBy": "fixtures+1785718769032@example.com"
+    },
+    {
+      "id": 4,
+      "fromStatus": "RECEBIDO",
+      "toStatus": "EM_PREPARO",
+      "changedAt": "2026-08-03T00:59:29.646Z",
+      "changedBy": "fixtures+1785718769032@example.com"
+    },
+    {
+      "id": 5,
+      "fromStatus": "EM_PREPARO",
+      "toStatus": "SAIU_PARA_ENTREGA",
+      "changedAt": "2026-08-03T00:59:29.675Z",
+      "changedBy": "fixtures+1785718769032@example.com"
+    }
+  ]
+}
