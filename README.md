@@ -284,7 +284,11 @@ válidos de inválidos.
 Toda resposta — inclusive as recusadas antes de chegar na aplicação — volta com
 um header `X-Request-Id`. É o mesmo identificador que aparece entre colchetes na
 linha de log daquela requisição, então um erro relatado por quem chamou pode ser
-encontrado no console pelo valor que ele tem em mãos.
+encontrado no console pelo valor que ele tem em mãos. Vale também para o `401`
+recusado na cadeia de filtros, que deixa linha própria. O header é exposto por
+nome no CORS: sem isso ele chega ao browser e o JavaScript da página lê `null`,
+porque um navegador só entrega a código de outra origem os headers que a resposta
+autoriza.
 
 As mensagens saem sempre em inglês, inclusive as do Bean Validation, que são a
 metade da resposta que não escrevemos. O Hibernate Validator traz um bundle por
@@ -311,8 +315,15 @@ round-trip de criação de pedido também estão cobertos.
 
 Os logs têm suíte própria, e a maior parte dela é sobre o que não pode aparecer:
 que a recusa de login não nomeia o endereço tentado, que as duas maneiras de
-falhar produzem a mesma linha e que uma senha rejeitada pela validação não vai
-parar no console.
+falhar produzem a mesma linha, que uma senha rejeitada pela validação não vai
+parar no console e que um token recusado não vai junto com a linha que o recusa.
+O que essas asserções leem inclui o stack trace, e não só a mensagem — é por ali
+que um valor que ninguém escreveu chegaria ao arquivo.
+
+Um caso lê o console de verdade, e não a mensagem em memória: a chave do MDC, o
+nome da propriedade e o padrão do Boot precisam concordar entre si, nenhum dos
+três é conferido pelo compilador, e trocar a chave por outra deixava a suíte
+inteira verde imprimindo colchetes vazios.
 
 O front ainda não tem suíte — está listado em [Próximos passos](#próximos-passos).
 
@@ -342,15 +353,27 @@ request autenticado.
 
 **O log não diz quem errou a senha.** Os pedidos sempre tiveram trilha de
 auditoria (`OrderStatusHistory`); as sessões não tinham nenhuma. Agora login,
-logout e cadastro deixam linha, e o identificador que elas carregam é o `jti` do
-token — o mesmo que o logout revoga —, nunca o e-mail nem o token. Uma senha
-errada e um e-mail que não existe produzem a mesma linha, palavra por palavra: o
-`decoyHash` já faz as duas demorarem igual para que o tempo de resposta não
-entregue quais contas existem, e um log nomeando o endereço devolveria pelos
-arquivos aquilo que a resposta esconde. Sobra a taxa de recusas, que é a parte
-que vale olhar. Pela mesma razão as recusas registram o nome da exceção e não a
-mensagem dela: a de validação traz de volta os valores rejeitados, e em
-`/api/auth` um deles é a senha.
+logout e cadastro deixam linha. O identificador que login e logout carregam é o
+`jti` do token — o mesmo que o logout revoga —, e o do cadastro é o id do
+usuário, porque naquele ponto ainda não há token. Nunca o e-mail, nunca o token.
+Uma senha errada e um e-mail que não existe produzem a mesma linha, palavra por
+palavra: o `decoyHash` já faz as duas demorarem igual para que o tempo de
+resposta não entregue quais contas existem, e um log nomeando o endereço
+devolveria pelos arquivos aquilo que a resposta esconde. Sobra a taxa de
+recusas, que é a parte que vale olhar. Pela mesma razão as recusas registram o
+nome da exceção e não a mensagem dela: a de validação traz de volta os valores
+rejeitados, e em `/api/auth` um deles é a senha.
+
+O endereço de quem chamou também fica de fora, e essa é uma escolha e não o
+padrão que sobrou: é dado pessoal, e um log guardado para contar recusas passaria
+a carregá-lo pelo tempo em que for guardado. O preço é que a taxa é global — dá
+para ver que houve cinquenta recusas num minuto, não que foram de um só lugar.
+
+A regra da mensagem tem uma exceção, e é o `5xx`. Ali a exceção não é o pedido de
+quem chamou voltando, e sim falta nossa: o framework a levanta quando não
+consegue escrever a resposta ou vincular uma variável que o código declarou.
+Essas saem em `ERROR` e com o stack trace, porque uma frase nomeando a classe é o
+registro menos útil justamente do status que mais precisa de um.
 
 **Toda transação começa `IMMEDIATE`.** O SQLite recusa promover a transação que
 já leu em transação que escreve, e recusa sem esperar o `busy_timeout` — então

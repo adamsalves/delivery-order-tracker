@@ -48,16 +48,26 @@ que uma mudança respeite as decisões que sustentam cada parte.
   tracing. Um filtro à frente da cadeia de segurança (`@Order` mais alto,
   não atrás dela) gera um id por requisição, põe no MDC — costurado no
   padrão do Boot por `logging.pattern.correlation` — e devolve em
-  `X-Request-Id`; estando à frente, 401 e 403 também saem com id. Ele
-  também registra, no caminho de volta, a falha que ninguém tratou, que
-  o container só logaria depois, com o MDC já limpo. Deixam linha:
-  cadastro, login recusado, token emitido, token revogado e cada recusa
-  do advice. NUNCA registre o e-mail tentado, o token, a senha, nem a
-  mensagem de uma exceção de validação — ela traz os valores rejeitados,
-  e em `/api/auth` um deles é a senha. A linha leva `jti`, status, rota e
-  o NOME da exceção. As duas falhas de login (senha errada, conta
-  inexistente) produzem linha idêntica de propósito: é o mesmo motivo do
-  `decoyHash`, e há teste exigindo que sejam iguais.
+  `X-Request-Id`, exposto no CORS por nome — sem isso o header chega ao
+  browser e o JS lê `null`. Estando à frente, 401 e 403 também saem com
+  id. Ele também registra, no caminho de volta, a falha que ninguém
+  tratou, que o container só logaria depois, com o MDC já limpo. Deixam
+  linha: cadastro, login recusado, token emitido, token revogado, cada
+  recusa do advice e cada recusa escrita na cadeia de filtros (401/403,
+  no `ProblemDetailAuthenticationHandler`) — esta última é a recusa mais
+  comum de uma API bearer, e sem ela o id voltava sem nada a que
+  correlacionar. NUNCA registre o e-mail tentado, o token, a senha, nem
+  a mensagem de uma exceção de validação — ela traz os valores
+  rejeitados, e em `/api/auth` um deles é a senha. A linha leva `jti`
+  (ou, no cadastro, o id do usuário), status, rota e o NOME da exceção.
+  As duas falhas de login (senha errada, conta inexistente) produzem
+  linha idêntica de propósito: é o mesmo motivo do `decoyHash`, e há
+  teste exigindo que sejam iguais. O endereço de quem chamou fica de
+  fora por decisão, não por descuido: é dado pessoal, e o log é
+  guardado. Exceção à regra da mensagem: um 5xx sai em ERROR com o stack
+  trace, porque ali a exceção é falta nossa e não o input do chamador
+  voltando — não há `@Validated` nesta aplicação para levantar validação
+  de método em 500.
 - Endpoints: criar pedido, atualizar status, listar todos, buscar por ID.
 - A listagem é PAGINADA e ordenável. Decisão deliberada, tomada na fase
   de domínio: devolver a tabela inteira numa resposta só não escala e a
