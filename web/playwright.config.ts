@@ -1,17 +1,15 @@
 import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
+import { API_URL, WEB_URL } from "./e2e/support/servers";
 
 /*
- * A pair of ports of its own, and not the 8080/5173 the README documents. Three things fall out of
- * that: the development stack can stay up while this runs, api/data/app.db is never opened, and a
- * port already taken is a failure to start rather than a suite quietly testing somebody else's
- * server.
+ * A pair of ports of their own, and not the 8080/5173 the README documents. Three things fall out
+ * of that: the development stack can stay up while this runs, api/data/app.db is never opened, and
+ * a port already taken is a failure to start rather than a suite quietly testing somebody else's
+ * server. The specs that address the API directly read the same two constants.
  */
-const API_PORT = 8081;
-const WEB_PORT = 4173;
-
-const API_URL = `http://localhost:${API_PORT}`;
-const WEB_URL = `http://localhost:${WEB_PORT}`;
+const API_PORT = new URL(API_URL).port;
+const WEB_PORT = new URL(WEB_URL).port;
 
 /**
  * Minted per run and never written down. The suite signs up its own accounts every time, so no token
@@ -75,7 +73,7 @@ export default defineConfig({
        * run here cannot reach the development secret or the development database.
        */
       env: {
-        SERVER_PORT: String(API_PORT),
+        SERVER_PORT: API_PORT,
         SPRING_DATASOURCE_URL: "jdbc:sqlite:./data/e2e.db",
         JWT_SECRET,
         APP_CORS_ALLOWED_ORIGINS: WEB_URL,

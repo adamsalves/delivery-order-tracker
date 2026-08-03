@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["e2e"]
+  "include": ["e2e", "playwright.config.ts"]
 }
