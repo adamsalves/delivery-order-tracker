@@ -5,10 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import dev.adamsalves.ordertracker.support.ApiTestClient;
+import dev.adamsalves.ordertracker.support.RecordedLogs;
 import dev.adamsalves.ordertracker.user.UserRepository;
 import java.util.Base64;
 import java.util.List;
@@ -16,7 +14,6 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -50,8 +47,7 @@ class AuthLoggingTests {
     @Autowired
     private UserRepository userRepository;
 
-    private final ListAppender<ILoggingEvent> recorded = new ListAppender<>();
-
+    private RecordedLogs logs;
     private ApiTestClient api;
 
     @BeforeEach
@@ -59,14 +55,12 @@ class AuthLoggingTests {
         userRepository.deleteAll();
 
         api = new ApiTestClient(mockMvc, objectMapper);
-        recorded.start();
-        rootLogger().addAppender(recorded);
+        logs = new RecordedLogs();
     }
 
     @AfterEach
     void stopListening() {
-        rootLogger().detachAppender(recorded);
-        recorded.stop();
+        logs.close();
     }
 
     /**
@@ -81,8 +75,8 @@ class AuthLoggingTests {
 
         String tokenId = tokenIdOf(token);
 
-        assertThat(messagesFrom(TokenService.class)).anyMatch(line -> line.contains(tokenId));
-        assertThat(messagesFrom(AuthService.class)).anyMatch(line -> line.contains(tokenId));
+        assertThat(logs.from(TokenService.class)).anyMatch(line -> line.contains(tokenId));
+        assertThat(logs.from(AuthService.class)).anyMatch(line -> line.contains(tokenId));
     }
 
     /**
@@ -97,11 +91,11 @@ class AuthLoggingTests {
         rejectedLogin(EMAIL, "not-the-password-on-file");
         rejectedLogin(UNKNOWN_EMAIL, "not-the-password-on-file");
 
-        List<String> rejections = messagesFrom(AuthService.class, Level.WARN);
+        List<String> rejections = logs.from(AuthService.class, Level.WARN);
 
         assertThat(rejections).hasSize(2);
-        assertThat(rejections.get(0)).isEqualTo(rejections.get(1));
-        assertThat(everythingWritten()).noneMatch(line -> line.contains(EMAIL) || line.contains(UNKNOWN_EMAIL));
+        assertThat(rejections.getFirst()).isEqualTo(rejections.getLast());
+        assertThat(logs.all()).noneMatch(line -> line.contains(EMAIL) || line.contains(UNKNOWN_EMAIL));
     }
 
     private void rejectedLogin(String email, String password) throws Exception {
@@ -120,27 +114,5 @@ class AuthLoggingTests {
         byte[] claims = Base64.getUrlDecoder().decode(token.split("\\.")[1]);
 
         return objectMapper.readTree(claims).path("jti").asText();
-    }
-
-    private List<String> everythingWritten() {
-        return recorded.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
-    }
-
-    private List<String> messagesFrom(Class<?> source) {
-        return recorded.list.stream()
-                .filter(event -> event.getLoggerName().equals(source.getName()))
-                .map(ILoggingEvent::getFormattedMessage)
-                .toList();
-    }
-
-    private List<String> messagesFrom(Class<?> source, Level level) {
-        return recorded.list.stream()
-                .filter(event -> event.getLoggerName().equals(source.getName()) && event.getLevel() == level)
-                .map(ILoggingEvent::getFormattedMessage)
-                .toList();
-    }
-
-    private Logger rootLogger() {
-        return (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     }
 }

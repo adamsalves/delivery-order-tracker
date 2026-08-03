@@ -41,33 +41,33 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     private static final int MAX_ECHOED_LENGTH = 50;
 
     @ExceptionHandler(OrderNotFoundException.class)
-    ProblemDetail handleOrderNotFound(OrderNotFoundException ex) {
-        return problem(HttpStatus.NOT_FOUND, ex.getMessage());
+    ProblemDetail handleOrderNotFound(OrderNotFoundException ex, WebRequest request) {
+        return problem(HttpStatus.NOT_FOUND, ex, request);
     }
 
     @ExceptionHandler(InvalidStatusTransitionException.class)
-    ProblemDetail handleInvalidStatusTransition(InvalidStatusTransitionException ex) {
-        return problem(HttpStatus.CONFLICT, ex.getMessage());
+    ProblemDetail handleInvalidStatusTransition(InvalidStatusTransitionException ex, WebRequest request) {
+        return problem(HttpStatus.CONFLICT, ex, request);
     }
 
     @ExceptionHandler(EmailAlreadyRegisteredException.class)
-    ProblemDetail handleEmailAlreadyRegistered(EmailAlreadyRegisteredException ex) {
-        return problem(HttpStatus.CONFLICT, ex.getMessage());
+    ProblemDetail handleEmailAlreadyRegistered(EmailAlreadyRegisteredException ex, WebRequest request) {
+        return problem(HttpStatus.CONFLICT, ex, request);
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
-    ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
-        return problem(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex, WebRequest request) {
+        return problem(HttpStatus.UNAUTHORIZED, ex, request);
     }
 
     @ExceptionHandler(PasswordTooLongException.class)
-    ProblemDetail handlePasswordTooLong(PasswordTooLongException ex) {
-        return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
+    ProblemDetail handlePasswordTooLong(PasswordTooLongException ex, WebRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ex, request);
     }
 
     @ExceptionHandler(UnsupportedSortPropertyException.class)
-    ProblemDetail handleUnsupportedSortProperty(UnsupportedSortPropertyException ex) {
-        return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
+    ProblemDetail handleUnsupportedSortProperty(UnsupportedSortPropertyException ex, WebRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, ex, request);
     }
 
     @Override
@@ -95,6 +95,20 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * The one way through for everything the framework raises, ours included once the base class has
+     * given it a body, which makes it the place to record them without repeating the call in each
+     * override.
+     */
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex, Object body, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+
+        logRefusal(status, ex, request);
+
+        return super.handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    /**
      * Collected into lists because one field can break more than one rule at a time — a blank name
      * longer than the ceiling reports both — and a map keyed by field would lose all but one.
      */
@@ -108,8 +122,26 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                 Collectors.toList())));
     }
 
-    private ProblemDetail problem(HttpStatus status, String detail) {
-        return ProblemDetail.forStatusAndDetail(status, detail);
+    private ProblemDetail problem(HttpStatus status, Exception ex, WebRequest request) {
+        logRefusal(status, ex, request);
+
+        return ProblemDetail.forStatusAndDetail(status, ex.getMessage());
+    }
+
+    /**
+     * One refused request is ordinary and says nothing on its own; a rate of them says a great deal,
+     * and there was no way to see one. The line carries the route, the status and the name of the
+     * exception — deliberately not its message, which is the caller's own request coming back:
+     * MethodArgumentNotValidException prints every value it rejected, and on the way in through
+     * /api/auth one of those is the password. The request id in the pattern is what ties the line to
+     * the response the caller was given.
+     *
+     * <p>Failures nobody handled are not logged here, because they never reach here. Those are the
+     * filter's, at ERROR and with the stack trace.
+     */
+    private void logRefusal(HttpStatusCode status, Exception ex, WebRequest request) {
+        logger.warn("Answered %s with %s (%s)"
+                .formatted(request.getDescription(false), status, ex.getClass().getSimpleName()));
     }
 
     private String describe(HttpMessageNotReadableException ex) {
