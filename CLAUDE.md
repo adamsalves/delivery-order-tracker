@@ -44,6 +44,20 @@ que uma mudança respeite as decisões que sustentam cada parte.
   para preservar o header `WWW-Authenticate`. O corpo não diz se o
   token faltou, expirou ou foi revogado: isso é papel do header, e
   distinguir no corpo ajudaria a separar tokens válidos dos inválidos.
+- Logs: SLF4J direto, sem `logback-spring.xml` e sem dependência de
+  tracing. Um filtro à frente da cadeia de segurança (`@Order` mais alto,
+  não atrás dela) gera um id por requisição, põe no MDC — costurado no
+  padrão do Boot por `logging.pattern.correlation` — e devolve em
+  `X-Request-Id`; estando à frente, 401 e 403 também saem com id. Ele
+  também registra, no caminho de volta, a falha que ninguém tratou, que
+  o container só logaria depois, com o MDC já limpo. Deixam linha:
+  cadastro, login recusado, token emitido, token revogado e cada recusa
+  do advice. NUNCA registre o e-mail tentado, o token, a senha, nem a
+  mensagem de uma exceção de validação — ela traz os valores rejeitados,
+  e em `/api/auth` um deles é a senha. A linha leva `jti`, status, rota e
+  o NOME da exceção. As duas falhas de login (senha errada, conta
+  inexistente) produzem linha idêntica de propósito: é o mesmo motivo do
+  `decoyHash`, e há teste exigindo que sejam iguais.
 - Endpoints: criar pedido, atualizar status, listar todos, buscar por ID.
 - A listagem é PAGINADA e ordenável. Decisão deliberada, tomada na fase
   de domínio: devolver a tabela inteira numa resposta só não escala e a
@@ -149,5 +163,5 @@ README em vez de codar.
 As features do escopo estão fechadas. O que resta é trabalho de qualidade
 sobre elas, e não escopo novo:
 - `web/` não tem runner de testes configurado.
-- Na API, paginação, ordenação, CORS e o round-trip de criação de pedido
-  estão cobertos.
+- Na API, paginação, ordenação, CORS, o round-trip de criação de pedido e
+  os logs (id de correlação, evento de auth, recusa) estão cobertos.

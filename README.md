@@ -281,6 +281,11 @@ O corpo do `401` não diz se o token faltou, expirou ou foi revogado. Isso é pa
 do header `WWW-Authenticate`; distinguir no corpo ajudaria a separar tokens
 válidos de inválidos.
 
+Toda resposta — inclusive as recusadas antes de chegar na aplicação — volta com
+um header `X-Request-Id`. É o mesmo identificador que aparece entre colchetes na
+linha de log daquela requisição, então um erro relatado por quem chamou pode ser
+encontrado no console pelo valor que ele tem em mãos.
+
 As mensagens saem sempre em inglês, inclusive as do Bean Validation, que são a
 metade da resposta que não escrevemos. O Hibernate Validator traz um bundle por
 locale e resolve pelo `Accept-Language`, então um `curl` de navegador brasileiro
@@ -303,6 +308,11 @@ da outra. O banco de desenvolvimento em `api/data/` não é tocado.
 A listagem tem cobertura de paginação e ordenação — tamanho de página, teto,
 direção, página além do fim e as propriedades que ela recusa ordenar. O CORS e o
 round-trip de criação de pedido também estão cobertos.
+
+Os logs têm suíte própria, e a maior parte dela é sobre o que não pode aparecer:
+que a recusa de login não nomeia o endereço tentado, que as duas maneiras de
+falhar produzem a mesma linha e que uma senha rejeitada pela validação não vai
+parar no console.
 
 O front ainda não tem suíte — está listado em [Próximos passos](#próximos-passos).
 
@@ -329,6 +339,18 @@ logout grava esse identificador numa tabela de revogados, e um
 request. As entradas expiradas são apagadas no próprio logout, sem job agendado.
 O preço é deliberado: a API deixa de ser 100% stateless e paga um lookup por
 request autenticado.
+
+**O log não diz quem errou a senha.** Os pedidos sempre tiveram trilha de
+auditoria (`OrderStatusHistory`); as sessões não tinham nenhuma. Agora login,
+logout e cadastro deixam linha, e o identificador que elas carregam é o `jti` do
+token — o mesmo que o logout revoga —, nunca o e-mail nem o token. Uma senha
+errada e um e-mail que não existe produzem a mesma linha, palavra por palavra: o
+`decoyHash` já faz as duas demorarem igual para que o tempo de resposta não
+entregue quais contas existem, e um log nomeando o endereço devolveria pelos
+arquivos aquilo que a resposta esconde. Sobra a taxa de recusas, que é a parte
+que vale olhar. Pela mesma razão as recusas registram o nome da exceção e não a
+mensagem dela: a de validação traz de volta os valores rejeitados, e em
+`/api/auth` um deles é a senha.
 
 **Toda transação começa `IMMEDIATE`.** O SQLite recusa promover a transação que
 já leu em transação que escreve, e recusa sem esperar o `busy_timeout` — então
