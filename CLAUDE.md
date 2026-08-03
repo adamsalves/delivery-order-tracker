@@ -172,6 +172,11 @@ README em vez de codar.
 ## Estado atual
 As features do escopo estão fechadas. O que resta é trabalho de qualidade
 sobre elas, e não escopo novo:
-- `web/` não tem runner de testes configurado.
+- `web/` roda vitest com Testing Library em jsdom (`npm test`). A config
+  vive no próprio `vite.config.ts`, para que o alias `@` e o plugin do
+  react tenham uma definição só. Os testes ficam ao lado do que testam,
+  dentro de `src`, e o `tsc -b` do build também os checa.
+- A lógica pura do front está coberta: preço em centavos, tabela de
+  ordenação, máquina de transições e as mensagens de erro.
 - Na API, paginação, ordenação, CORS, o round-trip de criação de pedido e
   os logs (id de correlação, evento de auth, recusa) estão cobertos.
