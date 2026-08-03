@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.adamsalves.ordertracker.support.ApiTestClient;
 import dev.adamsalves.ordertracker.user.UserRepository;
 import java.math.BigDecimal;
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -150,6 +151,27 @@ class OrderCreationTests {
                 .andExpect(jsonPath("$.status").value("RECEBIDO"));
     }
 
+    /**
+     * The list had a floor and no ceiling, so an order of any length was accepted, stored and read
+     * back in full. A refusal that still wrote the rows would leave the table holding what the
+     * answer says was never taken.
+     */
+    @Test
+    void refusesAnOrderCarryingMoreItemsThanTheCeiling() throws Exception {
+        create(itemsRepeated(101))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.items").isArray());
+
+        assertThat(orderRepository.count()).isZero();
+    }
+
+    @Test
+    void takesAnOrderSittingExactlyOnTheCeiling() throws Exception {
+        create(itemsRepeated(100))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items.length()").value(100));
+    }
+
     private ResultActions create(String body) throws Exception {
         return mockMvc.perform(post("/api/orders")
                 .header(AUTHORIZATION, "Bearer " + token)
@@ -164,6 +186,17 @@ class OrderCreationTests {
                   "deliveryAddress": "Rua das Flores, 128",
                   "items": [{"name": "Pizza margherita", "quantity": 1, "unitPrice": "%s"}]
                 }""".formatted(unitPrice);
+    }
+
+    private String itemsRepeated(int count) {
+        String item = "{\"name\": \"Pizza margherita\", \"quantity\": 1, \"unitPrice\": \"45.90\"}";
+
+        return """
+                {
+                  "customerName": "Joana Ribeiro",
+                  "deliveryAddress": "Rua das Flores, 128",
+                  "items": [%s]
+                }""".formatted(String.join(",", Collections.nCopies(count, item)));
     }
 
     private long idOf(ResultActions result) throws Exception {
