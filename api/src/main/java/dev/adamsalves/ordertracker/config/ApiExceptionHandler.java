@@ -52,32 +52,32 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(OrderNotFoundException.class)
     ProblemDetail handleOrderNotFound(OrderNotFoundException ex, WebRequest request) {
-        return problem(HttpStatus.NOT_FOUND, ex, request);
+        return refuse(HttpStatus.NOT_FOUND, ex, request);
     }
 
     @ExceptionHandler(InvalidStatusTransitionException.class)
     ProblemDetail handleInvalidStatusTransition(InvalidStatusTransitionException ex, WebRequest request) {
-        return problem(HttpStatus.CONFLICT, ex, request);
+        return refuse(HttpStatus.CONFLICT, ex, request);
     }
 
     @ExceptionHandler(EmailAlreadyRegisteredException.class)
     ProblemDetail handleEmailAlreadyRegistered(EmailAlreadyRegisteredException ex, WebRequest request) {
-        return problem(HttpStatus.CONFLICT, ex, request);
+        return refuse(HttpStatus.CONFLICT, ex, request);
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex, WebRequest request) {
-        return problem(HttpStatus.UNAUTHORIZED, ex, request);
+        return refuse(HttpStatus.UNAUTHORIZED, ex, request);
     }
 
     @ExceptionHandler(PasswordTooLongException.class)
     ProblemDetail handlePasswordTooLong(PasswordTooLongException ex, WebRequest request) {
-        return problem(HttpStatus.BAD_REQUEST, ex, request);
+        return refuse(HttpStatus.BAD_REQUEST, ex, request);
     }
 
     @ExceptionHandler(UnsupportedSortPropertyException.class)
     ProblemDetail handleUnsupportedSortProperty(UnsupportedSortPropertyException ex, WebRequest request) {
-        return problem(HttpStatus.BAD_REQUEST, ex, request);
+        return refuse(HttpStatus.BAD_REQUEST, ex, request);
     }
 
     @Override
@@ -132,7 +132,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                 Collectors.toList())));
     }
 
-    private ProblemDetail problem(HttpStatus status, Exception ex, WebRequest request) {
+    /**
+     * Named for both halves of what it does. It writes the line as well as building the body, and a
+     * method called {@code problem} would read at all six call sites like it only shaped a value.
+     */
+    private ProblemDetail refuse(HttpStatus status, Exception ex, WebRequest request) {
         logRefusal(status, ex, request);
 
         return ProblemDetail.forStatusAndDetail(status, ex.getMessage());
