@@ -38,6 +38,10 @@ export function OrderTransitions({ order, onMoved }: OrderTransitionsProps) {
   const open = allowedTransitions(order.status);
 
   async function move(target: OrderStatus) {
+    /* What makes aria-disabled enough below: the repeat press is refused here rather than by an
+     * attribute, so the button can stay reachable while it says it is busy. */
+    if (moving !== null) return;
+
     setMoving(target);
     setFailure(null);
 
@@ -68,11 +72,16 @@ export function OrderTransitions({ order, onMoved }: OrderTransitionsProps) {
 
       {open.length > 0 && (
         <div className="flex flex-wrap gap-2">
+          {/* aria-disabled and not disabled, the same choice "Carregar mais" makes on the listing:
+              move() already refuses a repeat, and taking the attribute route would drop the focus
+              instead of only announcing the wait. It costs nothing on the success path, where these
+              buttons are replaced — but a refused transition re-enables them, and the focus would be
+              gone at the exact moment there is something to read. */}
           {open.map((target) => (
             <Button
               key={target}
               variant={target === "CANCELADO" ? "destructive" : "default"}
-              disabled={moving !== null}
+              aria-disabled={moving !== null}
               onClick={() => void move(target)}
             >
               {moving === target && <Loader2 className="animate-spin" />}
