@@ -1,0 +1,10 @@
+# Built inside the image, and sending a host build in would only shadow it.
+target/
+
+# The development database. It has no business in a build context, and the image gets its own file
+# on a volume anyway.
+data/
+
+# The secret is handed over at runtime by compose. Copied in, it would stay readable in a layer for
+# anyone who pulls the image.
+.env
