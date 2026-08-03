@@ -180,3 +180,13 @@ sobre elas, e não escopo novo:
   ordenação, máquina de transições e as mensagens de erro.
 - Na API, paginação, ordenação, CORS, o round-trip de criação de pedido e
   os logs (id de correlação, evento de auth, recusa) estão cobertos.
+- `web/e2e/` roda Playwright em Chromium (`npm run test:e2e`). É a única
+  camada que exercita os dois processos juntos, e a config sobe os dois
+  sozinha: a API em 8081 com `api/data/e2e.db` apagado a cada execução e um
+  segredo sorteado, e o front em 4173 servido por `vite preview`. As portas
+  próprias e o `preview` são decisões, não descuido — 8080/5173 e
+  `api/data/app.db` ficam livres para o desenvolvimento, e a CSP só existe
+  no build, então dirigir o dev server testaria uma página que não é a
+  publicada. Não troque por `npm run dev` nem pelas portas documentadas.
+  Cada spec cria os dados que afirma; a ordem entre elas é declarada pela
+  project `setup`, e não herdada do nome dos arquivos.
