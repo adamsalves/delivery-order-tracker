@@ -11,9 +11,9 @@ import dev.adamsalves.ordertracker.user.UserRepository;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -32,6 +32,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@ExtendWith(RecordedLogs.class)
 @TestPropertySource(properties = "spring.datasource.url=jdbc:sqlite:./target/test-data/auth-logging.db")
 class AuthLoggingTests {
 
@@ -47,7 +48,6 @@ class AuthLoggingTests {
     @Autowired
     private UserRepository userRepository;
 
-    private RecordedLogs logs;
     private ApiTestClient api;
 
     @BeforeEach
@@ -55,12 +55,6 @@ class AuthLoggingTests {
         userRepository.deleteAll();
 
         api = new ApiTestClient(mockMvc, objectMapper);
-        logs = new RecordedLogs();
-    }
-
-    @AfterEach
-    void stopListening() {
-        logs.close();
     }
 
     /**
@@ -69,7 +63,7 @@ class AuthLoggingTests {
      * the two lines carry.
      */
     @Test
-    void followsASessionFromTheTokenIssuedToTheTokenRevoked() throws Exception {
+    void followsASessionFromTheTokenIssuedToTheTokenRevoked(RecordedLogs logs) throws Exception {
         String token = api.registerAndLogin(EMAIL);
         logout(token);
 
@@ -85,7 +79,7 @@ class AuthLoggingTests {
      * sorted them apart would give back over the logs what the timing no longer discloses.
      */
     @Test
-    void recordsARejectedLoginWithoutNamingWhoTriedIt() throws Exception {
+    void recordsARejectedLoginWithoutNamingWhoTriedIt(RecordedLogs logs) throws Exception {
         api.registerAndLogin(EMAIL);
 
         rejectedLogin(EMAIL, "not-the-password-on-file");

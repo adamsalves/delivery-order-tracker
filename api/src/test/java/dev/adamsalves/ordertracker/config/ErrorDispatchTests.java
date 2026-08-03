@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.qos.logback.classic.Level;
 import dev.adamsalves.ordertracker.support.RecordedLogs;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -31,6 +31,7 @@ import org.springframework.web.client.RestClient;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@ExtendWith(RecordedLogs.class)
 @TestPropertySource(properties = "spring.datasource.url=jdbc:sqlite:./target/test-data/error-dispatch.db")
 class ErrorDispatchTests {
 
@@ -38,17 +39,10 @@ class ErrorDispatchTests {
     private int port;
 
     private RestClient client;
-    private RecordedLogs logs;
 
     @BeforeEach
     void pointAtTheRunningServer() {
         client = RestClient.create("http://localhost:" + port);
-        logs = new RecordedLogs();
-    }
-
-    @AfterEach
-    void stopListening() {
-        logs.close();
     }
 
     /**
@@ -73,7 +67,7 @@ class ErrorDispatchTests {
      * unhandled: the advice answers everything that reaches the dispatcher servlet.
      */
     @Test
-    void recordsTheFailureNobodyHandled() {
+    void recordsTheFailureNobodyHandled(RecordedLogs logs) {
         client.get().uri("/api/boom").exchange((request, response) -> response.getStatusCode());
 
         List<String> failures = logs.from(RequestIdFilter.class, Level.ERROR);

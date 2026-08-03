@@ -11,9 +11,9 @@ import dev.adamsalves.ordertracker.support.RecordedLogs;
 import dev.adamsalves.ordertracker.user.UserRepository;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -35,6 +35,7 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@ExtendWith(RecordedLogs.class)
 @TestPropertySource(properties = "spring.datasource.url=jdbc:sqlite:./target/test-data/refusal-logging.db")
 class RefusalLoggingTests {
 
@@ -49,7 +50,6 @@ class RefusalLoggingTests {
     @Autowired
     private UserRepository userRepository;
 
-    private RecordedLogs logs;
     private ApiTestClient api;
 
     @BeforeEach
@@ -57,12 +57,6 @@ class RefusalLoggingTests {
         userRepository.deleteAll();
 
         api = new ApiTestClient(mockMvc, objectMapper);
-        logs = new RecordedLogs();
-    }
-
-    @AfterEach
-    void stopListening() {
-        logs.close();
     }
 
     /**
@@ -71,7 +65,7 @@ class RefusalLoggingTests {
      * request was refused without becoming the place the password is kept.
      */
     @Test
-    void keepsARejectedPasswordOutOfTheLog() throws Exception {
+    void keepsARejectedPasswordOutOfTheLog(RecordedLogs logs) throws Exception {
         String password = "s3cr3t";
 
         mockMvc.perform(post("/api/auth/register")
@@ -89,7 +83,7 @@ class RefusalLoggingTests {
      * in the line; the exception is named, its message is not.
      */
     @Test
-    void namesTheRouteAndTheStatusItAnswered() throws Exception {
+    void namesTheRouteAndTheStatusItAnswered(RecordedLogs logs) throws Exception {
         String token = api.registerAndLogin(EMAIL);
 
         mockMvc.perform(get("/api/orders/404404").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
@@ -108,7 +102,7 @@ class RefusalLoggingTests {
      * mentioned.
      */
     @Test
-    void recordsARefusalWrittenBeforeTheApplicationIsReached() throws Exception {
+    void recordsARefusalWrittenBeforeTheApplicationIsReached(RecordedLogs logs) throws Exception {
         mockMvc.perform(get("/api/orders")).andExpect(status().isUnauthorized());
 
         List<String> refusals = logs.from(ProblemDetailAuthenticationHandler.class, Level.WARN);
@@ -126,7 +120,7 @@ class RefusalLoggingTests {
      * passes on the name of the exception itself, which is the one place the word is allowed.
      */
     @Test
-    void keepsARefusedTokenOutOfTheLog() throws Exception {
+    void keepsARefusedTokenOutOfTheLog(RecordedLogs logs) throws Exception {
         String token = api.registerAndLogin(EMAIL);
 
         mockMvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
@@ -145,7 +139,7 @@ class RefusalLoggingTests {
      * "answered 500 (MissingPathVariableException)" without the trace that says where.
      */
     @Test
-    void logsAFaultOfItsOwnAtErrorWithTheTrace() throws Exception {
+    void logsAFaultOfItsOwnAtErrorWithTheTrace(RecordedLogs logs) throws Exception {
         String token = api.registerAndLogin(EMAIL);
 
         mockMvc.perform(get("/api/misdeclared/7").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
