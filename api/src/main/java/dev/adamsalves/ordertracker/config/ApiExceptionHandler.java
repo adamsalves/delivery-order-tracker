@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -36,6 +38,14 @@ import tools.jackson.databind.exc.InvalidFormatException;
  */
 @RestControllerAdvice
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    /**
+     * Its own rather than the {@code logger} the base class hands down, which is commons-logging and
+     * takes a finished string — the odd one out among the loggers here, and no way to tell from the
+     * call site. Naming the class also fixes the name of the logger, where the inherited field reads
+     * it off {@code getClass()} and would answer to a proxy if anything ever advised this class.
+     */
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     private static final String UNREADABLE_BODY = "Failed to read request";
     private static final int MAX_ECHOED_LENGTH = 50;
@@ -140,8 +150,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      * filter's, at ERROR and with the stack trace.
      */
     private void logRefusal(HttpStatusCode status, Exception ex, WebRequest request) {
-        logger.warn("Answered %s with %s (%s)"
-                .formatted(request.getDescription(false), status, ex.getClass().getSimpleName()));
+        log.warn(
+                "Answered {} with {} ({})",
+                request.getDescription(false),
+                status,
+                ex.getClass().getSimpleName());
     }
 
     private String describe(HttpMessageNotReadableException ex) {
