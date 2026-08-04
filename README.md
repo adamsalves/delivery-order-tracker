@@ -279,6 +279,18 @@ Fora as duas rotas de documentação acima, qualquer outra exige
 
 ### Um passeio completo via curl
 
+Vale igual nos dois caminhos. O container publica a 8080 na máquina, então a
+URL, o token e cada comando abaixo são os mesmos do wrapper — não existe uma
+versão "para quem está no container", e nada aqui precisa de `docker exec`. A
+única diferença é de onde o processo do outro lado está lendo o banco.
+
+O bloco é bash/zsh: as continuações com `\` e o JSON entre aspas simples são
+dele. No PowerShell 5.1, o que vem com o Windows, `curl` é apelido de
+`Invoke-WebRequest` e falha na leitura dos parâmetros — e não com "comando não
+encontrado", o que torna o erro confuso; chame `curl.exe`, ou rode o passeio no
+Git Bash. Sem tradução nenhuma, a [Swagger UI](#documentação-da-api) faz o mesmo
+tour pelo navegador.
+
 ```bash
 # 1. Cadastro
 curl -sS -X POST http://localhost:8080/api/auth/register \
