@@ -93,8 +93,6 @@ atual". Só cobre a API — containerizar o front continua fora.
 Recuperação de senha e verificação de e-mail também estão fora.
 Filtro por status também está fora: a listagem tem paginação e
 ordenação, e nada além disso.
-Se achar que algo assim agrega, escreva na seção "Próximos passos" do
-README em vez de codar.
 
 ## Stack
 - API: Java 21, Spring Boot 4.1.0, Spring Security

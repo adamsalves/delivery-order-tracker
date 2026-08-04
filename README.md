@@ -948,28 +948,3 @@ web/                              Vite + React
     routes/                       layouts e guarda de rota
 compose.yaml                      sobe a API em container; o front fica de fora
 ```
-
-## Próximos passos
-
-Fora do escopo do desafio, na ordem em que fariam mais diferença:
-
-- **Cobertura de componente no front.** A lógica pura está coberta em jsdom e
-  os caminhos felizes das telas estão cobertos no navegador. O buraco no meio
-  são as ramificações do formulário de criação — cada regra de validação, cada
-  linha adicionada e removida — que o E2E cobriria devagar demais.
-- **Rodar as três suítes em CI.** Existem três comandos e nada que os execute
-  sozinho; o E2E, que sobe os dois processos por conta própria, é o que mais
-  ganharia com isso.
-- **Filtro por status na listagem.** O caminho natural depois da ordenação.
-- **Teto no tamanho do corpo.** O limite de 100 itens recusa depois que o Jackson
-  já montou a lista: corta o que é gravado e o que é respondido, não o que é
-  lido. Um teto em bytes é configuração de contêiner, não anotação de campo.
-- **Refresh token.** Hoje a sessão dura 24h e acaba de uma vez; um refresh
-  encurtaria o token de acesso sem obrigar um novo login.
-- **Papéis e permissões.** Todo usuário autenticado pode fazer tudo. Separar quem
-  cria pedido de quem move status é o primeiro corte útil.
-- **O front no Compose também.** Hoje só a API tem container, e por decisão; subir
-  os dois com um comando só significa containerizar a suíte de navegador junto,
-  que é a parte cara da conta.
-- **Postgres no lugar do SQLite.** O `IMMEDIATE` resolve a disputa de escrita para
-  um volume pequeno, mas um banco com MVCC não precisaria dela.
