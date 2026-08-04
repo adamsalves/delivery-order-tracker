@@ -571,7 +571,8 @@ descartáveis — nunca para os de desenvolvimento:
 ```bash
 cd api
 SPRING_DATASOURCE_URL=jdbc:sqlite:./data/fixtures.db \
-JWT_SECRET=$(openssl rand -base64 48) ./mvnw spring-boot:run
+JWT_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))") \
+./mvnw spring-boot:run
 ```
 
 ```bash
