@@ -707,7 +707,7 @@ de execução, e por isso a porta e a origem do CORS são as mesmas nos dois.
       |  POST /api/auth/register      |                              |
       |------------------------------>|  senha com BCrypt            |
       |                               |----------------------------->|
-      |<-- 201 { id, nome, email }    |                              |
+      |<-- 201 { id, name, email }    |                              |
       |                               |                              |
       |  POST /api/auth/login         |                              |
       |------------------------------>|  confere a senha             |
@@ -725,7 +725,7 @@ de execução, e por isso a porta e a origem do CORS são as mesmas nos dois.
       |                               |                              |
       |  POST /api/auth/logout        |                              |
       |  Bearer <jwt>                 |  grava o jti do próprio      |
-      |------------------------------>|  token em revoked_token      |
+      |------------------------------>|  token em revoked_tokens     |
       |<-- 204                        |----------------------------->|
       |    limpa o localStorage       |                              |
 ```
@@ -759,7 +759,7 @@ recusa, e é onde moram as duas exceções à regra de que todo erro sai do advi
   |  BearerTokenAuthenticationFilter                                  |
   |  JwtDecoder  ->  assinatura HS256                                 |
   |              ->  validadores padrão (exp)                         |
-  |              ->  RevokedTokenValidator  ->  tabela revoked_token  |
+  |              ->  RevokedTokenValidator  ->  tabela revoked_tokens |
   +-------------------------------------------------------------------+
       |                                       |
       |  autenticado                          |  401 / 403
