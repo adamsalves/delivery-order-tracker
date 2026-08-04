@@ -60,9 +60,11 @@ garante que a do Windows chegue com as quebras de linha que o `cmd` espera. Tamb
 são exclusivos de bash o prefixo `VAR=valor comando` e o `$(...)`, que aparecem
 juntos no bloco de [regravar as fixtures](#fixtures-do-teste-de-contrato).
 
-As três suítes rodam nos três sistemas, pelos dois caminhos — inclusive a do
-navegador, que inicia a API com `shell: true` e por isso escreve a limpeza do
-banco e a chamada do wrapper de um jeito que o `cmd.exe` também entende.
+Nenhuma das três suítes depende mais de um shell Unix. A de navegador era a que
+dependia: ela inicia a API com `shell: true`, que fora do Unix é o `cmd.exe`, e
+por isso a limpeza do banco e a chamada do wrapper passaram a ser escritas de um
+jeito que os dois entendem. Dito isso, **nada disso foi executado no Windows** —
+trate como provável, não como verificado.
 
 ## Subindo a aplicação
 
@@ -635,9 +637,9 @@ detalhe: `down -v` apaga os volumes do projeto inteiro, e se ele dividisse o
 projeto com o `docker compose up` da aplicação, encerrar a suíte levaria junto o
 `api-data` — o seu banco de desenvolvimento.
 
-Este caminho também não usa `rm` nem `./mvnw`, que são o que prende a alternativa
-a um shell Unix. Isso o deixa mais perto de funcionar num terminal do Windows,
-mas não foi executado lá: trate como provável, não como verificado.
+Este caminho também não usa `rm` nem `./mvnw` — e a alternativa deixou de usar,
+veja [Se você está no Windows](#se-você-está-no-windows). Nenhum dos dois foi
+executado num terminal do Windows: trate como provável, não como verificado.
 
 #### Alternativa: a suíte com o wrapper
 
