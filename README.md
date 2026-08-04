@@ -22,7 +22,6 @@ lados.
 | Node.js | 24 (fixado em `web/.nvmrc`) | `node --version` | sempre |
 | Docker | Compose 1.28.6+ | `docker compose version` ou `docker-compose --version` | caminho padrão |
 | JDK | 21 | `java -version` | caminho alternativo |
-| openssl | qualquer | `openssl version` | só para gerar o segredo |
 
 Maven **não** precisa estar instalado: o projeto traz o wrapper (`api/mvnw`).
 SQLite também não — o driver `org.xerial:sqlite-jdbc` é uma dependência Java e
@@ -39,6 +38,33 @@ A escolha aparece duas vezes, e é independente nas duas: ao
 [subir a API](#1-api--httplocalhost8080) e ao
 [rodar a suíte de navegador](#suíte-de-navegador-playwright), que sobe uma API
 só dela e não fala com o container da aplicação.
+
+### Se você está no Windows
+
+A escolha entre container e wrapper é sobre qual toolchain você tem — Docker ou
+JDK 21 —, e não sobre o sistema operacional: os dois caminhos sobem a aplicação
+no Windows, no macOS e no Linux. O que muda com o sistema é o **shell**, porque
+os comandos deste README são escritos para bash/zsh.
+
+Rodar tudo no Git Bash ou no WSL dispensa qualquer tradução. No PowerShell, três
+comandos trocam de nome:
+
+| bash/zsh | PowerShell |
+| --- | --- |
+| `cp .env.example .env` | `Copy-Item .env.example .env` |
+| `rm -rf api/data` | `Remove-Item -Recurse -Force api/data` |
+| `./mvnw spring-boot:run` | `.\mvnw.cmd spring-boot:run` |
+
+O wrapper do Maven está no repositório nas duas versões, e o `.gitattributes`
+garante que a do Windows chegue com as quebras de linha que o `cmd` espera. Também
+são exclusivos de bash o prefixo `VAR=valor comando` e o `$(...)`, que aparecem
+juntos no bloco de [regravar as fixtures](#fixtures-do-teste-de-contrato).
+
+Nenhuma das três suítes depende mais de um shell Unix. A de navegador era a que
+dependia: ela inicia a API com `shell: true`, que fora do Unix é o `cmd.exe`, e
+por isso a limpeza do banco e a chamada do wrapper passaram a ser escritas de um
+jeito que os dois entendem. Dito isso, **nada disso foi executado no Windows** —
+trate como provável, não como verificado.
 
 ## Subindo a aplicação
 
@@ -67,8 +93,13 @@ cp .env.example .env
 Gere um segredo e escreva ele no `.env`, na linha `JWT_SECRET=`:
 
 ```bash
-openssl rand -base64 48
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))"
 ```
+
+Esse comando roda em qualquer shell dos três sistemas — bash, zsh, `cmd` e
+PowerShell, com as aspas exatamente como estão acima — e não pede nada além do
+Node, que já é pré-requisito dos dois lados. Quem tiver openssl à mão pode usar
+`openssl rand -base64 48`, que dá um segredo equivalente.
 
 O `.env` é git-ignored e lido no boot. **HS256 exige pelo menos 32 bytes**, e a
 aplicação se recusa a subir com o segredo vazio ou curto demais — é uma falha
@@ -113,11 +144,12 @@ SQLite em `api/data/app.db`. Não é preciso criar o diretório `data/` na mão:
 aplicação cria ele antes de abrir a primeira conexão, porque o driver do SQLite
 não conecta se o diretório do arquivo não existir.
 
-Para começar do zero em qualquer momento, pare a API e apague o arquivo — ainda
-de dentro de `api/`:
+Para começar do zero em qualquer momento, pare a API e apague o banco
+(`api/data/app.db`) com o comando abaixo, a partir da raiz do repositório. Ele
+leva junto o diretório `data/`, que a aplicação recria no próximo start:
 
 ```bash
-rm -rf data
+rm -rf api/data
 ```
 
 Os dois param aqui: as três suítes de teste rodam à parte, e a de navegador sobe
@@ -158,6 +190,76 @@ Abra `http://localhost:5173`.
 O token fica no `localStorage` e vale 24h. **Sair** revoga ele no servidor — não
 é só um logout de cliente, o token deixa de ser aceito na hora.
 
+## Logs
+
+Não existe arquivo de log. A aplicação escreve no stdout do processo e nada além
+disso — não há `logback-spring.xml` nem `logging.file.name` —, então quem guarda
+a saída é quem roda o processo:
+
+| | Onde ver |
+| --- | --- |
+| **Padrão** (container) | `docker compose logs -f api`, da raiz do repositório |
+| **Alternativa** (wrapper) | no próprio terminal em que o `./mvnw spring-boot:run` está rodando |
+
+No container a saída fica com o log driver do Docker: ela sobrevive a um
+`restart`, mas não a um `docker compose down`, que leva o container e o registro
+dele junto. Para reler sem seguir, troque o `-f` por `--tail 100`, ou recorte por
+tempo com `--since 10m`. Para guardar num arquivo:
+
+```bash
+docker compose logs --no-color --no-log-prefix api > api.log
+```
+
+### Como ler uma linha
+
+```
+2026-08-03T23:37:35.625Z  INFO 1 --- [order-tracker] [nio-8080-exec-5] [d89b5299-…] d.a.ordertracker.auth.TokenService : Issued token 8f1d026a-… to user 1
+```
+
+É o padrão do Spring Boot com um acréscimo: o colchete entre a thread e o nome
+do logger é o **id da requisição**. Ele vem vazio (`[]`) nas linhas escritas fora
+de uma requisição, o start da aplicação entre elas. Nos logs do container, o
+prefixo `api-1  |` é do `docker compose` e não da aplicação — pelo wrapper a
+linha sai sem ele.
+
+### Achar as linhas de uma chamada
+
+Toda resposta devolve esse mesmo id no header `X-Request-Id`, inclusive as que a
+cadeia de segurança recusa antes de chegar no controller. É por ele que se acha o
+que foi escrito enquanto aquela chamada era servida:
+
+```bash
+curl -si http://localhost:8080/api/orders | grep -i x-request-id
+# X-Request-Id: 91cf26ff-4504-47a1-8241-853e1ffd7426
+
+docker compose logs api | grep 91cf26ff-4504-47a1-8241-853e1ffd7426
+# … WARN … [91cf26ff-…] a.o.c.ProblemDetailAuthenticationHandler : Answered uri=/api/orders with 401 UNAUTHORIZED (InsufficientAuthenticationException)
+```
+
+A API expõe esse header no CORS por nome, então o JS do front também consegue
+ler ele — sem isso o header chegaria ao navegador e `headers.get()` devolveria
+`null`. É o que um relato de erro tem para citar.
+
+Os dois comandos acima são bash/zsh, pelas mesmas razões da
+[seção de Windows](#se-você-está-no-windows): no PowerShell, `curl` é apelido de
+`Invoke-WebRequest` e `grep` não existe — as trocas são `curl.exe` e
+`Select-String`. O id também aparece na aba Network do navegador, que não precisa
+de tradução nenhuma.
+
+### O que deixa linha, e o que nunca aparece
+
+Cadastro, token emitido, token revogado, login recusado, cada recusa do advice,
+cada 401/403 escrito na cadeia de filtros e a falha que ninguém tratou, que o
+`RequestIdFilter` registra no caminho de volta para que ela ainda leve o id. As recusas `4xx` saem em `WARN` e
+nomeiam a **classe** da exceção, não a mensagem dela; um `5xx` sai em `ERROR` e
+com o stack trace.
+
+Nunca aparecem: o e-mail tentado, o token, a senha, a mensagem de uma exceção de
+validação e o endereço de quem chamou. As duas falhas de login — senha errada e
+conta inexistente — produzem a mesma linha, palavra por palavra. Cada uma dessas
+ausências é uma escolha, e o porquê de todas está em [Decisões](#decisões), no
+item *O log não diz quem errou a senha*.
+
 ## Documentação da API
 
 Com a API no ar:
@@ -185,6 +287,18 @@ Fora as duas rotas de documentação acima, qualquer outra exige
 `Authorization: Bearer <token>`.
 
 ### Um passeio completo via curl
+
+Vale igual nos dois caminhos. O container publica a 8080 na máquina, então a
+URL, o token e cada comando abaixo são os mesmos do wrapper — não existe uma
+versão "para quem está no container", e nada aqui precisa de `docker exec`. A
+única diferença é de onde o processo do outro lado está lendo o banco.
+
+O bloco é bash/zsh: as continuações com `\` e o JSON entre aspas simples são
+dele. No PowerShell 5.1, o que vem com o Windows, `curl` é apelido de
+`Invoke-WebRequest` e falha na leitura dos parâmetros — e não com "comando não
+encontrado", o que torna o erro confuso; chame `curl.exe`, ou rode o passeio no
+Git Bash. Sem tradução nenhuma, a [Swagger UI](#documentação-da-api) faz o mesmo
+tour pelo navegador.
 
 ```bash
 # 1. Cadastro
@@ -464,7 +578,8 @@ descartáveis — nunca para os de desenvolvimento:
 ```bash
 cd api
 SPRING_DATASOURCE_URL=jdbc:sqlite:./data/fixtures.db \
-JWT_SECRET=$(openssl rand -base64 48) ./mvnw spring-boot:run
+JWT_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))") \
+./mvnw spring-boot:run
 ```
 
 ```bash
@@ -530,9 +645,9 @@ detalhe: `down -v` apaga os volumes do projeto inteiro, e se ele dividisse o
 projeto com o `docker compose up` da aplicação, encerrar a suíte levaria junto o
 `api-data` — o seu banco de desenvolvimento.
 
-Este caminho também não usa `rm` nem `./mvnw`, que são o que prende a alternativa
-a um shell Unix. Isso o deixa mais perto de funcionar num terminal do Windows,
-mas não foi executado lá: trate como provável, não como verificado.
+Este caminho também não usa `rm` nem `./mvnw` — e a alternativa deixou de usar,
+veja [Se você está no Windows](#se-você-está-no-windows). Nenhum dos dois foi
+executado num terminal do Windows: trate como provável, não como verificado.
 
 #### Alternativa: a suíte com o wrapper
 
@@ -565,6 +680,128 @@ cd web && npm run format          # prettier
 
 O front também tem `npm run lint` (oxlint) e `npm run build`, que roda o
 `tsc -b` antes do bundle.
+
+## Design do sistema
+
+São dois processos independentes, e o contrato entre eles é HTTP/JSON com um
+token no header. Nenhum dos dois compartilha memória, sessão de servidor ou
+arquivo com o outro — o que o front sabe sobre a sessão é o token que ele
+guardou, e o que a API sabe sobre o front é a origem que ela aceita no CORS.
+
+```
+       navegador                                 máquina ou container
+  +---------------------+                   +----------------------------+
+  |  web/  :5173        |                   |  api/  :8080               |
+  |                     |                   |                            |
+  |  Vite + React       |  Authorization:   |  Spring Boot 4             |
+  |  react-router       |  Bearer <jwt>     |  Spring Security           |
+  |  fetch              | ----------------> |  Spring Data JPA           |
+  |                     |                   |             |              |
+  |  localStorage       |  JSON, ou         |             v              |
+  |  guarda o token     | <---------------- |    +----------------+      |
+  |                     |  ProblemDetail    |    | SQLite app.db  |      |
+  |                     |  + X-Request-Id   |    +----------------+      |
+  +---------------------+                   +----------------------------+
+```
+
+O front roda sempre na máquina; só a API troca de lugar entre os dois caminhos
+de execução, e por isso a porta e a origem do CORS são as mesmas nos dois.
+
+### Uma sessão, do cadastro ao logout
+
+```
+  navegador                          API                          SQLite
+      |                               |                              |
+      |  POST /api/auth/register      |                              |
+      |------------------------------>|  senha com BCrypt            |
+      |                               |----------------------------->|
+      |<-- 201 { id, name, email }    |                              |
+      |                               |                              |
+      |  POST /api/auth/login         |                              |
+      |------------------------------>|  confere a senha             |
+      |<-- 200 { token, expiresIn }   |  assina o JWT: sub = id,     |
+      |    guarda no localStorage     |  email, jti, exp em 24h      |
+      |                               |                              |
+      |  POST /api/orders             |                              |
+      |  Bearer <jwt>                 |  pedido, itens e a primeira  |
+      |------------------------------>|  linha do histórico          |
+      |<-- 201 OrderDetailResponse    |----------------------------->|
+      |                               |                              |
+      |  PATCH /api/orders/1/status   |                              |
+      |------------------------------>|  a transição é permitida?    |
+      |<-- 200, ou 409 se não for     |  se sim, mais uma linha      |
+      |                               |                              |
+      |  POST /api/auth/logout        |                              |
+      |  Bearer <jwt>                 |  grava o jti do próprio      |
+      |------------------------------>|  token em revoked_tokens     |
+      |<-- 204                        |----------------------------->|
+      |    limpa o localStorage       |                              |
+```
+
+O token é a única coisa que atravessa: não há cookie, não há sessão no servidor
+e o front nunca manda o id do usuário: ele vai no `sub` do próprio token, e o
+e-mail que a API grava no histórico é lido do claim, não do corpo da requisição.
+
+### O que uma chamada autenticada atravessa
+
+Do lado da API a ordem não é decorativa — é ela que decide quem responde uma
+recusa, e é onde moram as duas exceções à regra de que todo erro sai do advice:
+
+```
+  GET /api/orders?page=0&size=20
+  Authorization: Bearer <jwt>
+      |
+      v
+  +-------------------------------------------------------------------+
+  |  RequestIdFilter               @Order(HIGHEST_PRECEDENCE)         |
+  |  gera o id, põe no MDC e devolve em X-Request-Id                  |
+  +-------------------------------------------------------------------+
+      |
+      v
+  +-------------------------------------------------------------------+
+  |  CorsFilter                    origem :5173, X-Request-Id exposto |
+  +-------------------------------------------------------------------+
+      |
+      v
+  +-------------------------------------------------------------------+
+  |  BearerTokenAuthenticationFilter                                  |
+  |  JwtDecoder  ->  assinatura HS256                                 |
+  |              ->  validadores padrão (exp)                         |
+  |              ->  RevokedTokenValidator  ->  tabela revoked_tokens |
+  +-------------------------------------------------------------------+
+      |                                       |
+      |  autenticado                          |  401 / 403
+      v                                       v
+  +------------------------------+  +--------------------------------+
+  |  DispatcherServlet           |  |  ProblemDetailAuthentication-  |
+  |    OrderController           |  |  Handler                       |
+  |      OrderService            |  |  escreve o mesmo ProblemDetail |
+  |        OrderRepository       |  |  aqui, porque o advice não     |
+  |          SQLite              |  |  alcança antes do servlet      |
+  +------------------------------+  +--------------------------------+
+      |
+      |  exceção de domínio (400, 404, 409)
+      v
+  +-------------------------------------------------------------------+
+  |  ApiExceptionHandler           @RestControllerAdvice              |
+  |  traduz para ProblemDetail (RFC 9457) e registra a recusa         |
+  +-------------------------------------------------------------------+
+```
+
+O `RequestIdFilter` está à frente da cadeia de segurança, e não atrás: as
+recusas mais comuns de uma API bearer são escritas lá dentro, e um id que só
+cobrisse o que passou pela autenticação faltaria justamente nas respostas que
+alguém vai querer rastrear. O `RevokedTokenValidator` é o preço do logout de
+verdade — um lookup por request autenticado, que é o que tira desta API o
+rótulo de 100% stateless. As duas escolhas estão em [Decisões](#decisões).
+
+Os dois `401` do diagrama não são o mesmo. O da direita é sobre o token e nasce
+na cadeia de filtros; o de uma senha errada em `/api/auth/login` nasce no
+advice, porque ali a rota é pública e quem recusa é o serviço. Chegam na mesma
+forma — `ProblemDetail`, RFC 9457 — com `detail` diferente, e só o primeiro traz
+`WWW-Authenticate`. Já entre as causas do token o corpo não escolhe: faltando,
+malformado, expirado ou revogado, o `detail` é o mesmo, e quem diz qual foi é
+aquele header. Distinguir no corpo ajudaria a separar token válido de inválido.
 
 ## Decisões
 
