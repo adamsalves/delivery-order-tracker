@@ -22,7 +22,6 @@ lados.
 | Node.js | 24 (fixado em `web/.nvmrc`) | `node --version` | sempre |
 | Docker | Compose 1.28.6+ | `docker compose version` ou `docker-compose --version` | caminho padrão |
 | JDK | 21 | `java -version` | caminho alternativo |
-| openssl | qualquer | `openssl version` | só para gerar o segredo |
 
 Maven **não** precisa estar instalado: o projeto traz o wrapper (`api/mvnw`).
 SQLite também não — o driver `org.xerial:sqlite-jdbc` é uma dependência Java e
@@ -92,8 +91,13 @@ cp .env.example .env
 Gere um segredo e escreva ele no `.env`, na linha `JWT_SECRET=`:
 
 ```bash
-openssl rand -base64 48
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64'))"
 ```
+
+Esse comando roda em qualquer shell dos três sistemas — bash, zsh, `cmd` e
+PowerShell, com as aspas exatamente como estão acima — e não pede nada além do
+Node, que já é pré-requisito dos dois lados. Quem tiver openssl à mão pode usar
+`openssl rand -base64 48`, que dá um segredo equivalente.
 
 O `.env` é git-ignored e lido no boot. **HS256 exige pelo menos 32 bytes**, e a
 aplicação se recusa a subir com o segredo vazio ou curto demais — é uma falha
