@@ -82,7 +82,18 @@ export default defineConfig({
        * 200 without authenticating, and it only answers at all once the context is up. */
       url: `${API_URL}/v3/api-docs`,
       timeout: 180_000,
-      reuseExistingServer: false,
+      /*
+       * False is what stops a run from quietly testing a server it did not start, and it stays that
+       * way for the command above. The one exception is scripts/with-docker-api.ts, which brings the
+       * API up in a container before Playwright is called and says so here: on that path the server
+       * already answering this port is the one this very run created a moment ago, and starting a
+       * second with ./mvnw would only collide with it.
+       *
+       * The variable is named for that claim and not for the container, because it is the only thing
+       * that lowers this guard: something as guessable as E2E_API=docker sitting in a shell would
+       * quietly give `npm run test:e2e:native` a server it did not start.
+       */
+      reuseExistingServer: process.env.E2E_API_ALREADY_STARTED === "1",
       gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
       stdout: "pipe",
       stderr: "pipe",

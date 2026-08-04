@@ -196,13 +196,28 @@ sobre elas, e não escopo novo:
   escreve o banco. O banco fica em volume nomeado e não em bind mount
   porque o lock do SQLite tem problema conhecido sobre bind mount do
   Docker Desktop — o reset passa a ser `docker compose down -v`.
-- `web/e2e/` roda Playwright em Chromium (`npm run test:e2e`). É a única
-  camada que exercita os dois processos juntos, e a config sobe os dois
-  sozinha: a API em 8081 com `api/data/e2e.db` apagado a cada execução e um
-  segredo sorteado, e o front em 4173 servido por `vite preview`. As portas
-  próprias e o `preview` são decisões, não descuido — 8080/5173 e
+- `web/e2e/` roda Playwright em Chromium. É a única camada que exercita os
+  dois processos juntos, sempre em 8081 (API) e 4173 (front servido por
+  `vite preview`), com banco recriado e segredo sorteado a cada execução.
+  As portas próprias e o `preview` são decisões, não descuido — 8080/5173 e
   `api/data/app.db` ficam livres para o desenvolvimento, e a CSP só existe
   no build, então dirigir o dev server testaria uma página que não é a
   publicada. Não troque por `npm run dev` nem pelas portas documentadas.
   Cada spec cria os dados que afirma; a ordem entre elas é declarada pela
   project `setup`, e não herdada do nome dos arquivos.
+- A suíte de navegador tem os MESMOS dois caminhos da API, e o padrão é o
+  container: `npm run test:e2e` roda `web/scripts/with-docker-api.ts`, e
+  `npm run test:e2e:native` é o caminho com `./mvnw`. As duas escolhas são
+  independentes — a suíte nunca fala com o container da aplicação, ela sobe
+  um só dela. O serviço fica em `compose.e2e.yaml` e não atrás de um profile
+  no `compose.yaml`, porque o compose interpola o arquivo inteiro antes de
+  resolver profiles e as variáveis obrigatórias quebrariam o
+  `docker compose up` documentado. Roda num projeto Docker próprio
+  (`order-tracker-e2e`): `down -v` apaga os volumes do projeto inteiro, e
+  dividir o projeto padrão faria o teardown da suíte levar junto o banco de
+  desenvolvimento. Não monta volume, então container novo é banco vazio —
+  é daí que vem a garantia que o primeiro spec afirma. O `up` leva
+  `--build`: sem ele o compose só construiria quando a imagem faltasse, e da
+  segunda execução em diante a suíte rodaria contra o jar anterior. Exigir o
+  container já no ar em vez de subir um não funciona, e não é preferência:
+  um container que outra pessoa subiu carrega o banco da execução anterior.
