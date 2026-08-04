@@ -11,6 +11,18 @@ desse caminho fica registrado num histórico com autor e horário.
   HS256), Spring Data JPA, Bean Validation, springdoc-openapi, SQLite.
 - **Web** — Vite, React 19, TypeScript, react-router, Tailwind CSS 4 e shadcn/ui.
 
+## Índice
+
+- [Pré-requisitos](#pré-requisitos)
+- [Subindo a aplicação](#subindo-a-aplicação)
+- [Logs](#logs)
+- [Documentação da API](#documentação-da-api)
+- [Testes](#testes)
+- [Estrutura](#estrutura)
+- [Design do sistema](#design-do-sistema)
+- [Decisões](#decisões)
+- [Formatação](#formatação)
+
 ## Pré-requisitos
 
 A API sobe em container por padrão, e o que você precisa instalar depende disso.
