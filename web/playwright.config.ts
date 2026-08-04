@@ -18,6 +18,16 @@ const WEB_PORT = new URL(WEB_URL).port;
  */
 const JWT_SECRET = randomBytes(48).toString("base64");
 
+/*
+ * Playwright spawns the commands below with shell: true, which off Unix is cmd.exe — no `rm`, and
+ * `./mvnw` is the sh script rather than the .cmd beside it. Both are named here so that the wipe
+ * still happens where it did, at the moment the server starts: moving it up to module scope would
+ * make `--list` and the container path, which never runs this command, delete the file too.
+ */
+const WIPE_DATABASE =
+  "node -e \"for(const f of ['e2e.db','e2e.db-wal','e2e.db-shm'])require('node:fs').rmSync('./data/'+f,{force:true})\"";
+const MVNW = process.platform === "win32" ? "mvnw.cmd" : "./mvnw";
+
 export default defineConfig({
   testDir: "./e2e",
 
@@ -62,10 +72,10 @@ export default defineConfig({
     {
       /*
        * The database is thrown away and remade on every run, so what the specs assert about the
-       * listing is about their own orders and nothing else. WAL leaves two files beside the first.
+       * listing is about their own orders and nothing else. WAL leaves two files beside the first,
+       * and the three are named one by one: wiping ./data itself would take app.db with them.
        */
-      command:
-        "rm -f ./data/e2e.db ./data/e2e.db-wal ./data/e2e.db-shm && ./mvnw -q spring-boot:run",
+      command: `${WIPE_DATABASE} && ${MVNW} -q spring-boot:run`,
       cwd: "../api",
       /*
        * Every one of these arrives as an environment variable, which Spring ranks above the config
