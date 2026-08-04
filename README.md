@@ -11,6 +11,18 @@ desse caminho fica registrado num histórico com autor e horário.
   HS256), Spring Data JPA, Bean Validation, springdoc-openapi, SQLite.
 - **Web** — Vite, React 19, TypeScript, react-router, Tailwind CSS 4 e shadcn/ui.
 
+## Índice
+
+- [Pré-requisitos](#pré-requisitos)
+- [Subindo a aplicação](#subindo-a-aplicação)
+- [Logs](#logs)
+- [Documentação da API](#documentação-da-api)
+- [Testes](#testes)
+- [Estrutura](#estrutura)
+- [Design do sistema](#design-do-sistema)
+- [Decisões](#decisões)
+- [Formatação](#formatação)
+
 ## Pré-requisitos
 
 A API sobe em container por padrão, e o que você precisa instalar depende disso.
@@ -669,17 +681,31 @@ O que ela cobre:
 | `session.spec.ts` | logout revogando o token no servidor, e a sessão caindo em toda aba |
 | `sorting.spec.ts` | o controle de ordenação sob a CSP do build, e a ordem vinda da API |
 
-## Formatação
+## Estrutura
 
-Antes de commitar, rode o formatador do lado que você mexeu:
-
-```bash
-cd api && ./mvnw spotless:apply   # palantir-java-format
-cd web && npm run format          # prettier
 ```
-
-O front também tem `npm run lint` (oxlint) e `npm run build`, que roda o
-`tsc -b` antes do bundle.
+api/                              Spring Boot
+  Dockerfile                      build multi-stage: compila e depois só o JRE
+  src/main/java/dev/adamsalves/ordertracker/
+    auth/                         cadastro, login, logout e revogação de token
+    config/                       segurança, JWT, tratamento de erros, OpenAPI
+    order/                        pedido, itens, status, histórico
+    user/                         o usuário cadastrado e seu repositório
+  src/main/resources/
+    application.properties
+  src/test/java/                  testes de integração e de unidade
+web/                              Vite + React
+  e2e/                            suíte de navegador (Playwright)
+  src/
+    api/                          cliente HTTP, tipos e parsers de resposta
+    auth/                         sessão e contexto de autenticação
+    components/                   componentes de domínio e primitivos shadcn/ui
+    hooks/                        estado das telas de listagem, detalhe e criação
+    lib/                          formatação, dinheiro, ordenação, erros
+    pages/                        login, cadastro, listagem, detalhe, novo pedido
+    routes/                       layouts e guarda de rota
+compose.yaml                      sobe a API em container; o front fica de fora
+```
 
 ## Design do sistema
 
@@ -923,28 +949,14 @@ registra dezoito recusas ao posicionar o popover do controle de ordenação —
 mas o controle ainda responde ao clique. Quem pega isso é o ouvinte de console
 da suíte, não a interação.
 
-## Estrutura
+## Formatação
 
+Antes de commitar, rode o formatador do lado que você mexeu:
+
+```bash
+cd api && ./mvnw spotless:apply   # palantir-java-format
+cd web && npm run format          # prettier
 ```
-api/                              Spring Boot
-  Dockerfile                      build multi-stage: compila e depois só o JRE
-  src/main/java/dev/adamsalves/ordertracker/
-    auth/                         cadastro, login, logout e revogação de token
-    config/                       segurança, JWT, tratamento de erros, OpenAPI
-    order/                        pedido, itens, status, histórico
-    user/                         o usuário cadastrado e seu repositório
-  src/main/resources/
-    application.properties
-  src/test/java/                  testes de integração e de unidade
-web/                              Vite + React
-  e2e/                            suíte de navegador (Playwright)
-  src/
-    api/                          cliente HTTP, tipos e parsers de resposta
-    auth/                         sessão e contexto de autenticação
-    components/                   componentes de domínio e primitivos shadcn/ui
-    hooks/                        estado das telas de listagem, detalhe e criação
-    lib/                          formatação, dinheiro, ordenação, erros
-    pages/                        login, cadastro, listagem, detalhe, novo pedido
-    routes/                       layouts e guarda de rota
-compose.yaml                      sobe a API em container; o front fica de fora
-```
+
+O front também tem `npm run lint` (oxlint) e `npm run build`, que roda o
+`tsc -b` antes do bundle.
