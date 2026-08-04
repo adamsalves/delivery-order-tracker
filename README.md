@@ -113,11 +113,12 @@ SQLite em `api/data/app.db`. Não é preciso criar o diretório `data/` na mão:
 aplicação cria ele antes de abrir a primeira conexão, porque o driver do SQLite
 não conecta se o diretório do arquivo não existir.
 
-Para começar do zero em qualquer momento, pare a API e apague o arquivo — ainda
-de dentro de `api/`:
+Para começar do zero em qualquer momento, pare a API e apague o banco
+(`api/data/app.db`) com o comando abaixo, a partir da raiz do repositório. Ele
+leva junto o diretório `data/`, que a aplicação recria no próximo start:
 
 ```bash
-rm -rf data
+rm -rf api/data
 ```
 
 Os dois param aqui: as três suítes de teste rodam à parte, e a de navegador sobe
