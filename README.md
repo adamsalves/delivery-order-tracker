@@ -40,6 +40,31 @@ A escolha aparece duas vezes, e é independente nas duas: ao
 [rodar a suíte de navegador](#suíte-de-navegador-playwright), que sobe uma API
 só dela e não fala com o container da aplicação.
 
+### Se você está no Windows
+
+A escolha entre container e wrapper é sobre qual toolchain você tem — Docker ou
+JDK 21 —, e não sobre o sistema operacional: os dois caminhos sobem a aplicação
+no Windows, no macOS e no Linux. O que muda com o sistema é o **shell**, porque
+os comandos deste README são escritos para bash/zsh.
+
+Rodar tudo no Git Bash ou no WSL dispensa qualquer tradução. No PowerShell, três
+comandos trocam de nome:
+
+| bash/zsh | PowerShell |
+| --- | --- |
+| `cp .env.example .env` | `Copy-Item .env.example .env` |
+| `rm -rf api/data` | `Remove-Item -Recurse -Force api/data` |
+| `./mvnw spring-boot:run` | `.\mvnw.cmd spring-boot:run` |
+
+O wrapper do Maven está no repositório nas duas versões, e o `.gitattributes`
+garante que a do Windows chegue com as quebras de linha que o `cmd` espera. Também
+são exclusivos de bash o prefixo `VAR=valor comando` e o `$(...)`, que aparecem
+juntos no bloco de [regravar as fixtures](#fixtures-do-teste-de-contrato).
+
+As três suítes rodam nos três sistemas, pelos dois caminhos — inclusive a do
+navegador, que inicia a API com `shell: true` e por isso escreve a limpeza do
+banco e a chamada do wrapper de um jeito que o `cmd.exe` também entende.
+
 ## Subindo a aplicação
 
 São dois processos, em dois terminais. A ordem entre eles não importa, mas as
