@@ -159,6 +159,69 @@ Abra `http://localhost:5173`.
 O token fica no `localStorage` e vale 24h. **Sair** revoga ele no servidor — não
 é só um logout de cliente, o token deixa de ser aceito na hora.
 
+## Logs
+
+Não existe arquivo de log. A aplicação escreve no stdout do processo e nada além
+disso — não há `logback-spring.xml` nem `logging.file.name` —, então quem guarda
+a saída é quem roda o processo:
+
+| | Onde ver |
+| --- | --- |
+| **Padrão** (container) | `docker compose logs -f api`, da raiz do repositório |
+| **Alternativa** (wrapper) | no próprio terminal em que o `./mvnw spring-boot:run` está rodando |
+
+No container a saída fica com o log driver do Docker: ela sobrevive a um
+`restart`, mas não a um `docker compose down`, que leva o container e o registro
+dele junto. Para reler sem seguir, troque o `-f` por `--tail 100`, ou recorte por
+tempo com `--since 10m`. Para guardar num arquivo:
+
+```bash
+docker compose logs --no-color api > api.log
+```
+
+### Como ler uma linha
+
+```
+2026-08-03T23:37:35.625Z  INFO 1 --- [order-tracker] [nio-8080-exec-5] [d89b5299-…] d.a.ordertracker.auth.TokenService : Issued token 8f1d026a-… to user 1
+```
+
+É o padrão do Spring Boot com um acréscimo: o colchete entre a thread e o nome
+do logger é o **id da requisição**. Ele vem vazio (`[]`) nas linhas escritas fora
+de uma requisição, o start da aplicação entre elas. Nos logs do container, o
+prefixo `api-1  |` é do `docker compose` e não da aplicação — pelo wrapper a
+linha sai sem ele.
+
+### Achar as linhas de uma chamada
+
+Toda resposta devolve esse mesmo id no header `X-Request-Id`, inclusive as que a
+cadeia de segurança recusa antes de chegar no controller. É por ele que se acha o
+que foi escrito enquanto aquela chamada era servida:
+
+```bash
+curl -si http://localhost:8080/api/orders | grep -i x-request-id
+# X-Request-Id: 91cf26ff-4504-47a1-8241-853e1ffd7426
+
+docker compose logs api | grep 91cf26ff-4504-47a1-8241-853e1ffd7426
+# … WARN … [91cf26ff-…] a.o.c.ProblemDetailAuthenticationHandler : Answered uri=/api/orders with 401 UNAUTHORIZED (InsufficientAuthenticationException)
+```
+
+A API expõe esse header no CORS por nome, então o JS do front também consegue
+ler ele — sem isso o header chegaria ao navegador e `headers.get()` devolveria
+`null`. É o que um relato de erro tem para citar.
+
+### O que deixa linha, e o que nunca aparece
+
+Cadastro, token emitido, token revogado, login recusado, cada recusa do advice e
+cada 401/403 escrito na cadeia de filtros. As recusas `4xx` saem em `WARN` e
+nomeiam a **classe** da exceção, não a mensagem dela; um `5xx` sai em `ERROR` e
+com o stack trace.
+
+Nunca aparecem: o e-mail tentado, o token, a senha, a mensagem de uma exceção de
+validação e o endereço de quem chamou. As duas falhas de login — senha errada e
+conta inexistente — produzem a mesma linha, palavra por palavra. Cada uma dessas
+ausências é uma escolha, e o porquê de todas está em [Decisões](#decisões), no
+item *O log não diz quem errou a senha*.
+
 ## Documentação da API
 
 Com a API no ar:
