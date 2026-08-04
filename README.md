@@ -630,6 +630,128 @@ cd web && npm run format          # prettier
 O front também tem `npm run lint` (oxlint) e `npm run build`, que roda o
 `tsc -b` antes do bundle.
 
+## Design do sistema
+
+São dois processos independentes, e o contrato entre eles é HTTP/JSON com um
+token no header. Nenhum dos dois compartilha memória, sessão de servidor ou
+arquivo com o outro — o que o front sabe sobre a sessão é o token que ele
+guardou, e o que a API sabe sobre o front é a origem que ela aceita no CORS.
+
+```
+       navegador                                 máquina ou container
+  +---------------------+                   +----------------------------+
+  |  web/  :5173        |                   |  api/  :8080               |
+  |                     |                   |                            |
+  |  Vite + React       |  Authorization:   |  Spring Boot 4             |
+  |  react-router       |  Bearer <jwt>     |  Spring Security           |
+  |  fetch              | ----------------> |  Spring Data JPA           |
+  |                     |                   |             |              |
+  |  localStorage       |  JSON, ou         |             v              |
+  |  guarda o token     | <---------------- |    +----------------+      |
+  |                     |  ProblemDetail    |    | SQLite app.db  |      |
+  |                     |  + X-Request-Id   |    +----------------+      |
+  +---------------------+                   +----------------------------+
+```
+
+O front roda sempre na máquina; só a API troca de lugar entre os dois caminhos
+de execução, e por isso a porta e a origem do CORS são as mesmas nos dois.
+
+### Uma sessão, do cadastro ao logout
+
+```
+  navegador                          API                          SQLite
+      |                               |                              |
+      |  POST /api/auth/register      |                              |
+      |------------------------------>|  senha com BCrypt            |
+      |                               |----------------------------->|
+      |<-- 201 { id, nome, email }    |                              |
+      |                               |                              |
+      |  POST /api/auth/login         |                              |
+      |------------------------------>|  confere a senha             |
+      |<-- 200 { token, expiresIn }   |  assina o JWT: sub = id,     |
+      |    guarda no localStorage     |  email, jti, exp em 24h      |
+      |                               |                              |
+      |  POST /api/orders             |                              |
+      |  Bearer <jwt>                 |  pedido, itens e a primeira  |
+      |------------------------------>|  linha do histórico          |
+      |<-- 201 OrderDetailResponse    |----------------------------->|
+      |                               |                              |
+      |  PATCH /api/orders/1/status   |                              |
+      |------------------------------>|  a transição é permitida?    |
+      |<-- 200, ou 409 se não for     |  se sim, mais uma linha      |
+      |                               |                              |
+      |  POST /api/auth/logout        |                              |
+      |  Bearer <jwt>                 |  grava o jti do próprio      |
+      |------------------------------>|  token em revoked_token      |
+      |<-- 204                        |----------------------------->|
+      |    limpa o localStorage       |                              |
+```
+
+O token é a única coisa que atravessa: não há cookie, não há sessão no servidor
+e o front nunca manda o id do usuário: ele vai no `sub` do próprio token, e o
+e-mail que a API grava no histórico é lido do claim, não do corpo da requisição.
+
+### O que uma chamada autenticada atravessa
+
+Do lado da API a ordem não é decorativa — é ela que decide quem responde uma
+recusa, e é onde moram as duas exceções à regra de que todo erro sai do advice:
+
+```
+  GET /api/orders?page=0&size=20
+  Authorization: Bearer <jwt>
+      |
+      v
+  +-------------------------------------------------------------------+
+  |  RequestIdFilter               @Order(HIGHEST_PRECEDENCE)         |
+  |  gera o id, põe no MDC e devolve em X-Request-Id                  |
+  +-------------------------------------------------------------------+
+      |
+      v
+  +-------------------------------------------------------------------+
+  |  CorsFilter                    origem :5173, X-Request-Id exposto |
+  +-------------------------------------------------------------------+
+      |
+      v
+  +-------------------------------------------------------------------+
+  |  BearerTokenAuthenticationFilter                                  |
+  |  JwtDecoder  ->  assinatura HS256                                 |
+  |              ->  validadores padrão (exp)                         |
+  |              ->  RevokedTokenValidator  ->  tabela revoked_token  |
+  +-------------------------------------------------------------------+
+      |                                       |
+      |  autenticado                          |  401 / 403
+      v                                       v
+  +------------------------------+  +--------------------------------+
+  |  DispatcherServlet           |  |  ProblemDetailAuthentication-  |
+  |    OrderController           |  |  Handler                       |
+  |      OrderService            |  |  escreve o mesmo ProblemDetail |
+  |        OrderRepository       |  |  aqui, porque o advice não     |
+  |          SQLite              |  |  alcança antes do servlet      |
+  +------------------------------+  +--------------------------------+
+      |
+      |  exceção de domínio (400, 404, 409)
+      v
+  +-------------------------------------------------------------------+
+  |  ApiExceptionHandler           @RestControllerAdvice              |
+  |  traduz para ProblemDetail (RFC 9457) e registra a recusa         |
+  +-------------------------------------------------------------------+
+```
+
+O `RequestIdFilter` está à frente da cadeia de segurança, e não atrás: as
+recusas mais comuns de uma API bearer são escritas lá dentro, e um id que só
+cobrisse o que passou pela autenticação faltaria justamente nas respostas que
+alguém vai querer rastrear. O `RevokedTokenValidator` é o preço do logout de
+verdade — um lookup por request autenticado, que é o que tira desta API o
+rótulo de 100% stateless. As duas escolhas estão em [Decisões](#decisões).
+
+Os dois `401` do diagrama não são o mesmo. O da direita é sobre o token e nasce
+na cadeia de filtros; o de uma senha errada em `/api/auth/login` nasce no
+advice, porque ali a rota é pública e quem recusa é o serviço. Chegam na mesma
+forma — `ProblemDetail`, RFC 9457 — com `detail` diferente, e só o primeiro traz
+`WWW-Authenticate`. Já entre as causas do token o corpo não escolhe: faltando,
+malformado, expirado ou revogado, o `detail` é o mesmo, e quem diz qual foi é
+aquele header. Distinguir no corpo ajudaria a separar token válido de inválido.
+
 ## Decisões
 
 Coisas que foram escolhidas, e não herdadas de um padrão:
