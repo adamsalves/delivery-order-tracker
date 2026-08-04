@@ -207,7 +207,7 @@ dele junto. Para reler sem seguir, troque o `-f` por `--tail 100`, ou recorte po
 tempo com `--since 10m`. Para guardar num arquivo:
 
 ```bash
-docker compose logs --no-color api > api.log
+docker compose logs --no-color --no-log-prefix api > api.log
 ```
 
 ### Como ler uma linha
@@ -240,10 +240,17 @@ A API expõe esse header no CORS por nome, então o JS do front também consegue
 ler ele — sem isso o header chegaria ao navegador e `headers.get()` devolveria
 `null`. É o que um relato de erro tem para citar.
 
+Os dois comandos acima são bash/zsh, pelas mesmas razões da
+[seção de Windows](#se-você-está-no-windows): no PowerShell, `curl` é apelido de
+`Invoke-WebRequest` e `grep` não existe — as trocas são `curl.exe` e
+`Select-String`. O id também aparece na aba Network do navegador, que não precisa
+de tradução nenhuma.
+
 ### O que deixa linha, e o que nunca aparece
 
-Cadastro, token emitido, token revogado, login recusado, cada recusa do advice e
-cada 401/403 escrito na cadeia de filtros. As recusas `4xx` saem em `WARN` e
+Cadastro, token emitido, token revogado, login recusado, cada recusa do advice,
+cada 401/403 escrito na cadeia de filtros e a falha que ninguém tratou, que o
+`RequestIdFilter` registra no caminho de volta para que ela ainda leve o id. As recusas `4xx` saem em `WARN` e
 nomeiam a **classe** da exceção, não a mensagem dela; um `5xx` sai em `ERROR` e
 com o stack trace.
 
